@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+agent_runs/*
+!agent_runs/.gitkeep
+node_modules/
+dist/
+.pytest_cache/
+vendor/pi/
+vendor/LexiRiskLabel/
