@@ -4,28 +4,33 @@
 
 `competition_ready: false`
 
-The repository is a tested, auditable Beta implementation rather than a claim of completed competition validation.
+The core research path is implemented and locally tested. Readiness remains
+false until the live Pi runtime/provider gate, a real historical non-credit
+dataset gate, and a remote CI observation are completed.
 
 | Gate | Status | Evidence |
 | --- | --- | --- |
-| Strict data partition / no historical backlog | PASS | 100 seeded invariant tests |
-| SQLite state, migration and recovery | PASS | `DatabaseManager` and mock end-to-end test |
-| DuckDB streaming ingestion | PASS | bounded sample/batch interface and streamed SHA-256 |
-| Dynamic multi-round environment | PASS | dynamic regression test |
-| LRBE two-stage optimizer | PASS | 50 brute-force equivalence cases |
-| Mock scientist closed loop | PASS | two hypotheses, plan/run/lock/finalize persisted |
-| Pi live provider loop | BLOCKED | extension is implemented but provider not exercised |
-| Real cross-domain empirical benchmark | BLOCKED | no semantically confirmed non-credit historical dataset run |
-| Clean GitHub CI run | PENDING | workflow committed; remote run must be observed |
+| Unified RPC → ResearchRuntime path | PASS | `agent_backend.rpc` and runtime integration tests |
+| Final evaluation cannot accept injected metrics | PASS | RPC schema regression test |
+| Oracle boundary / one final evaluation | PASS | dynamic protocol tests and evaluator guard |
+| Confirmed, versioned DomainSpec | PASS | separate decision/action confirmation test |
+| SQLite migrations, lineage and report export | PASS | migration, claim and report integration tests |
+| Deterministic replay restoration | PASS | persisted recipe/snapshot restore test |
+| Semantic availability and time audit | PASS | typed audit output with per-value statistics |
+| Real policies in dynamic environment | PASS | Random, CountOnly-MinCost, LRBE-Uncertainty |
+| Non-credit benchmark | PASS — simulation only | WDBC matrix + trajectories + CIs, explicitly replay mode |
+| Chinese workbench / API-key safety | PASS (local static/RPC validation) | Pi extensions plus Node secret tests |
+| Pi Live Agent | BLOCKED | Pi model catalog hydration timed out; no live provider claimed |
+| Custom provider | BLOCKED | intentionally not promoted without Pi extension validation |
+| GitHub Actions remote result | PENDING | workflow authored, remote run not observed |
 
 ## Non-negotiable limitations
 
-- A fully labeled dataset does **not** establish selective-label causality. The semantic auditor reports `NOT_SELECTIVE_LABEL` unless label availability/selection semantics are supplied or explicitly simulated.
-- Simulation supports protocol validation only; it cannot support a cross-domain effectiveness claim.
-- Final oracle metrics are intentionally unavailable during research and cannot be injected by an agent action.
+- A fully labelled or synthetic replay dataset does not prove a selective-label
+  mechanism or a cross-domain performance claim.
+- The benchmark must be called `REPLAY_MODE_SIMULATION`.
+- Oracle metrics remain unavailable during research and cannot be supplied by
+  any agent tool.
+- A proxy observation cost must not be represented as real-world harm/cost.
 
-## Next evidence needed
-
-1. Register a public non-credit dataset with human-confirmed decision values, label availability relationship, costs, and time ordering.
-2. Run the 5-seed × 3-budget benchmark matrix and retain its raw run database/artifacts.
-3. Configure a live models.dev-compatible provider and record a real Pi transcript using the independent tools.
+See `FINAL_ENGINEERING_REPORT.md` for the implementation and evidence ledger.

@@ -4,6 +4,144 @@
   "domain": "medical diagnosis (non-credit)",
   "decision_semantics": "synthetic replay threshold; not historical clinical workflow",
   "visibility_semantics": "private evaluator retains labels; protocol hides candidate labels",
+  "observation_action": "offline replay only",
+  "cost": "synthetic proxy cost",
+  "time_ordering": "synthetic decision_time before outcome_time",
   "simulation": true,
-  "matrix": "5 seeds × 3 budgets × 3 policies"
+  "matrix": "5 seeds × 3 budgets × 3 policies",
+  "effect_sizes": [
+    {
+      "budget": 30.0,
+      "comparison": "LRBE-Uncertainty minus Random",
+      "metric": "roc_auc",
+      "effect_size_mean": -0.006029199228017079,
+      "ci_95_normal": [
+        -0.01102482817972977,
+        -0.0010335702763043892
+      ],
+      "n_seeds": 5
+    },
+    {
+      "budget": 30.0,
+      "comparison": "LRBE-Uncertainty minus Random",
+      "metric": "average_precision",
+      "effect_size_mean": -0.0006108722014805945,
+      "ci_95_normal": [
+        -0.001245279927405146,
+        2.3535524443956887e-05
+      ],
+      "n_seeds": 5
+    },
+    {
+      "budget": 30.0,
+      "comparison": "LRBE-Uncertainty minus Random",
+      "metric": "feedback_count",
+      "effect_size_mean": 1.6,
+      "ci_95_normal": [
+        0.8160000000000002,
+        2.384
+      ],
+      "n_seeds": 5
+    },
+    {
+      "budget": 30.0,
+      "comparison": "LRBE-Uncertainty minus Random",
+      "metric": "spent_cost",
+      "effect_size_mean": 0.0,
+      "ci_95_normal": [
+        0.0,
+        0.0
+      ],
+      "n_seeds": 5
+    },
+    {
+      "budget": 60.0,
+      "comparison": "LRBE-Uncertainty minus Random",
+      "metric": "roc_auc",
+      "effect_size_mean": -0.001169962335216579,
+      "ci_95_normal": [
+        -0.00266795749434572,
+        0.00032803282391256233
+      ],
+      "n_seeds": 5
+    },
+    {
+      "budget": 60.0,
+      "comparison": "LRBE-Uncertainty minus Random",
+      "metric": "average_precision",
+      "effect_size_mean": -0.0002372511818190759,
+      "ci_95_normal": [
+        -0.0005560284076313955,
+        8.15260439932437e-05
+      ],
+      "n_seeds": 5
+    },
+    {
+      "budget": 60.0,
+      "comparison": "LRBE-Uncertainty minus Random",
+      "metric": "feedback_count",
+      "effect_size_mean": 4.2,
+      "ci_95_normal": [
+        3.466635152192308,
+        4.933364847807693
+      ],
+      "n_seeds": 5
+    },
+    {
+      "budget": 60.0,
+      "comparison": "LRBE-Uncertainty minus Random",
+      "metric": "spent_cost",
+      "effect_size_mean": 0.0,
+      "ci_95_normal": [
+        0.0,
+        0.0
+      ],
+      "n_seeds": 5
+    },
+    {
+      "budget": 90.0,
+      "comparison": "LRBE-Uncertainty minus Random",
+      "metric": "roc_auc",
+      "effect_size_mean": 0.0010860561483270414,
+      "ci_95_normal": [
+        -0.001628410837479347,
+        0.0038005231341334297
+      ],
+      "n_seeds": 5
+    },
+    {
+      "budget": 90.0,
+      "comparison": "LRBE-Uncertainty minus Random",
+      "metric": "average_precision",
+      "effect_size_mean": 0.00011081645042370081,
+      "ci_95_normal": [
+        -0.00038595216640766836,
+        0.00060758506725507
+      ],
+      "n_seeds": 5
+    },
+    {
+      "budget": 90.0,
+      "comparison": "LRBE-Uncertainty minus Random",
+      "metric": "feedback_count",
+      "effect_size_mean": 1.2,
+      "ci_95_normal": [
+        0.2398000208289942,
+        2.1601999791710056
+      ],
+      "n_seeds": 5
+    },
+    {
+      "budget": 90.0,
+      "comparison": "LRBE-Uncertainty minus Random",
+      "metric": "spent_cost",
+      "effect_size_mean": 0.0,
+      "ci_95_normal": [
+        0.0,
+        0.0
+      ],
+      "n_seeds": 5
+    }
+  ],
+  "competition_ready": false
 }
