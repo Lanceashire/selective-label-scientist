@@ -1,31 +1,47 @@
 from __future__ import annotations
-import json,sys
+
+import json
+import sys
 from pathlib import Path
+
 from .runtime import ResearchRuntime
-def dispatch(action:str,p:dict)->dict:
- if action=="finalize_evaluation" and "metrics" in p:raise ValueError("schema validation failed: finalize_evaluation accepts only session_id and run_id; metrics are evaluator-owned")
- r=ResearchRuntime(p.get("state_dir") or Path.home()/".ecomic")
- try:
-  s=str(p.get("session_id",""))
-  if action=="load_dataset":return r.create_session(str(p["path"]),str(p.get("description","")))
-  if action=="confirm_decision_mapping":return r.confirm_decision_mapping(s,str(p["decision_column"]),list(p["observed_values"]),list(p["non_observed_values"]),target_column=p.get("target_column"),cost_column=p.get("cost_column"),decision_time=p.get("decision_time"),outcome_time=p.get("outcome_time"),observation_reversible=p.get("observation_reversible"),observation_simulatable=p.get("observation_simulatable"))
-  if action=="create_hypothesis":return r.create_hypothesis(s,str(p["content"]))
-  if action=="plan_experiment":return r.plan_experiment(s,str(p["hypothesis_id"]),str(p["policy"]),float(p["budget"]),int(p["rounds"]))
-  if action=="run_experiment":return r.run_experiment(s,str(p["plan_id"]),str(p["policy"]),float(p["budget"]),int(p.get("seed",0)),int(p["rounds"]))
-  if action=="lock_research_plan":return r.lock_research_plan(s,str(p["plan_id"]))
-  if action=="lock_run_plan":return r.lock_run_plan(s,str(p["run_id"]))
-  if action=="finalize_evaluation":return r.finalize_evaluation(s,str(p["run_id"]))
-  if action=="claim_guard":return r.claim_guard(s,str(p["claim"]),str(p.get("domain_scope","run-local")),str(p.get("dataset_scope","current-dataset")),str(p.get("policy_scope","current-policy")),str(p.get("budget_scope","current-budget")),str(p.get("metric_scope","feedback_count")),list(p.get("evidence_run_ids",[])),str(p.get("strength","cautious")))
-  if action=="observe_state":return r.observe_state(s)
-  if action=="resume_environment":return r.resume_environment(s)
-  if action=="resume_next_round":return r.resume_next_round(s,str(p["run_id"]))
-  if action=="generate_report":return r.generate_report(s)
-  raise ValueError(f"unknown typed tool: {action}")
- finally:r.close()
-def main():
- for line in sys.stdin:
-  try:q=json.loads(line);out=dispatch(str(q.get("action","")),dict(q.get("payload",{})))
-  except Exception as e:out={"status":"ERROR","message":str(e)}
-  print(json.dumps(out,ensure_ascii=False),flush=True)
- return 0
-if __name__=="__main__":raise SystemExit(main())
+
+
+def dispatch(action: str, payload: dict) -> dict:
+    if action == "finalize_evaluation" and "metrics" in payload:
+        raise ValueError("schema validation failed: finalize_evaluation accepts only session_id and run_id; metrics are evaluator-owned")
+    runtime = ResearchRuntime(payload.get("state_dir") or Path.home() / ".ecomic")
+    try:
+        session_id = str(payload.get("session_id", ""))
+        if action == "list_sessions": return {"sessions": runtime.list_sessions()}
+        if action == "load_dataset": return runtime.create_session(str(payload["path"]), str(payload.get("description", "")))
+        if action == "confirm_decision_mapping": return runtime.confirm_decision_mapping(session_id, str(payload["decision_column"]), list(payload["observed_values"]), list(payload["non_observed_values"]), target_column=payload.get("target_column"), cost_column=payload.get("cost_column"), decision_time=payload.get("decision_time"), outcome_time=payload.get("outcome_time"))
+        if action == "confirm_observation_action": return runtime.confirm_observation_action(session_id, reversible=bool(payload["reversible"]), simulatable=bool(payload["simulatable"]), description=str(payload.get("description", "")))
+        if action == "create_hypothesis": return runtime.create_hypothesis(session_id, str(payload["content"]))
+        if action == "plan_experiment": return runtime.plan_experiment(session_id, str(payload["hypothesis_id"]), str(payload["policy"]), float(payload["budget"]), int(payload["rounds"]))
+        if action == "run_experiment": return runtime.run_experiment(session_id, str(payload["plan_id"]), str(payload["policy"]), float(payload["budget"]), int(payload.get("seed", 0)), int(payload["rounds"]))
+        if action == "lock_research_plan": return runtime.lock_research_plan(session_id, str(payload["plan_id"]))
+        if action == "lock_run_plan": return runtime.lock_run_plan(session_id, str(payload["run_id"]))
+        if action == "finalize_evaluation": return runtime.finalize_evaluation(session_id, str(payload["run_id"]))
+        if action == "claim_guard": return runtime.claim_guard(session_id, str(payload["claim"]), str(payload.get("domain_scope", "run-local")), str(payload.get("dataset_scope", "current-dataset")), str(payload.get("policy_scope", "current-policy")), str(payload.get("budget_scope", "current-budget")), str(payload.get("metric_scope", "feedback_count")), list(payload.get("evidence_run_ids", [])), str(payload.get("strength", "cautious")))
+        if action == "observe_state": return runtime.observe_state(session_id)
+        if action == "resume_environment": return runtime.resume_environment(session_id)
+        if action == "resume_next_round": return runtime.resume_next_round(session_id, str(payload["run_id"]))
+        if action == "generate_report": return runtime.generate_report(session_id)
+        raise ValueError(f"unknown typed tool: {action}")
+    finally:
+        runtime.close()
+
+
+def main() -> int:
+    for line in sys.stdin:
+        try:
+            query = json.loads(line)
+            output = dispatch(str(query.get("action", "")), dict(query.get("payload", {})))
+        except Exception as error:
+            output = {"status": "ERROR", "message": str(error)}
+        print(json.dumps(output, ensure_ascii=False), flush=True)
+    return 0
+
+
+if __name__ == "__main__": raise SystemExit(main())
