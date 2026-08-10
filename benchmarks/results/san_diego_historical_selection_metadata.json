@@ -1,0 +1,27 @@
+{
+  "dataset": "City of San Diego Police Vehicle Stops (Oct 2017–Jun 2018, new format)",
+  "source_url": "https://seshat.datasd.org/police_vehicle_stops/vehicle_stops_final_datasd.csv",
+  "source_page": "https://data.sandiego.gov/datasets/police-vehicle-stops/",
+  "license": "City of San Diego Open Data portal; verify portal license terms before redistribution.",
+  "sha256": "2203feed9ed2dbd27f73ee1c2e9865775ecec284abcc98a619ce30a24462c30c",
+  "domain": "police vehicle stops / public safety (non-credit)",
+  "rows": 34333,
+  "historical_decision_semantics": "searched=Y means an officer conducted a search; searched=N means no recorded search.",
+  "visibility_semantics": "All searched=Y records have contraband_found values. The downloaded file also has a small number of searched=N records with values, so this is strong descriptive evidence that requires source-level reconciliation rather than an assumed perfect mapping.",
+  "observation_action": "physical police search; irreversible and not safely simulatable by this project.",
+  "cost": "No observation-cost field is released; no synthetic cost is added.",
+  "time_ordering": "date_time records the stop/decision time, but the release has no separate contraband-observation timestamp; ordering remains unconfirmed.",
+  "simulation": false,
+  "historical_selection_counts": {
+    "searched": 2988,
+    "unsearched": 31338,
+    "visible_contraband_labels": 3574,
+    "visible_contraband_labels_when_unsearched": 586,
+    "missing_contraband_labels": 30759
+  },
+  "eligibility": {
+    "historical_selection_audit": "SUPPORTED_WITH_LIMITATIONS",
+    "dynamic_oracle_evaluation": "BLOCKED",
+    "reason": "Most unsearched stops have no contraband label, a small subset has an unexpected recorded value, and the release has no separate outcome timestamp. ECOMIC must not invent or silently reconcile missing labels before final evaluation."
+  }
+}

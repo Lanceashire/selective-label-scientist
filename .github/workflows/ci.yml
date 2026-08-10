@@ -70,3 +70,10 @@ jobs:
         working-directory: vendor/pi
       - name: Test Pi CLI
         run: node vendor/pi/packages/coding-agent/dist/cli.js --help
+      - name: Load ECOMIC Pi extensions
+        run: >-
+          node vendor/pi/packages/coding-agent/dist/cli.js
+          --extension agent/src/pi-extension.ts
+          --extension agent/src/ecomic-workbench.ts
+          --extension agent/src/ecomic-history.ts
+          --help
