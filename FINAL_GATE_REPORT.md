@@ -4,7 +4,7 @@
 
 `competition_ready: false`
 
-The core research path is implemented and locally tested. Pi itself now hydrates, builds, and loads the ECOMIC extensions locally. Readiness remains false until a real provider-driven Pi Scientist transcript is recorded and a non-credit historical dataset can pass its semantic/time and oracle-evaluation gates without inventing missing labels.
+The core research path is implemented and locally tested. Pi itself now hydrates, builds, and loads the ECOMIC extensions locally and on GitHub Actions. Readiness remains false until a real provider-driven Pi Scientist transcript is recorded and a non-credit historical dataset can pass its semantic/time and oracle-evaluation gates without inventing missing labels.
 
 | Gate | Status | Evidence |
 | --- | --- | --- |
@@ -19,10 +19,10 @@ The core research path is implemented and locally tested. Pi itself now hydrates
 | WDBC non-credit benchmark | PASS — simulation only | 5 × 3 × 3 matrix, trajectories and CIs; explicitly `REPLAY_MODE_SIMULATION` |
 | San Diego historical non-credit audit | PASS WITH LIMITATIONS | 34,333 public vehicle-stop rows; source hash recorded; genuine search decision and strong decision-dependent label availability; time and administrative-value anomalies are retained as gates |
 | Chinese workbench / API-key safety | PASS (local static/RPC validation) | Pi extensions plus Node secret tests |
-| Pi runtime / extension load | PASS locally | official model catalog hydrated, `build:offline` passed, and actual Pi CLI loaded all ECOMIC extensions |
+| Pi runtime / extension load | PASS locally + remotely | local validation plus GitHub run `31434225882` passed catalog hydration, offline build, CLI and three ECOMIC extension loads |
 | Pi Live Agent | BLOCKED | no user-owned provider key or redacted live Pi tool-use transcript was supplied; no paid provider call is claimed |
 | Custom provider | BLOCKED | intentionally not promoted without Pi extension validation |
-| GitHub Actions remote regular result | PASS | `validation` run `31432429985`: Ubuntu/Windows × Python 3.10/3.12/3.13 plus Node all passed; Pi remains a manual external integration gate |
+| GitHub Actions | PASS | regular validation `31434188402` and manual no-key Pi integration `31434225882` both passed on the current implementation |
 
 ## Non-negotiable limitations
 
