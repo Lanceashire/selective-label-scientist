@@ -1,14 +1,4 @@
 {
-  "name": "ecomic-selective-label-scientist",
-  "version": "0.2.0",
-  "private": true,
-  "type": "module",
-  "description": "ECOMIC cross-domain selective-label AI-for-Research agent",
-  "scripts": {
-    "ecomic": "node agent/src/main.mjs",
-    "ecomic:pi": "node vendor/pi/packages/coding-agent/dist/cli.js --extension agent/src/pi-extension.ts --extension agent/src/ecomic-workbench.ts",
-    "test": "python -m unittest discover -s tests_agent -p \"test_*.py\"",
-    "test:node": "node --test tests_node/*.test.mjs"
-  },
-  "engines": { "node": ">=22" }
+  "name":"ecomic-selective-label-scientist","version":"0.2.0","private":true,"type":"module","description":"ECOMIC cross-domain selective-label AI-for-Research agent",
+  "scripts":{"ecomic":"node agent/src/main.mjs","ecomic:pi":"node vendor/pi/packages/coding-agent/dist/cli.js --extension agent/src/pi-extension.ts --extension agent/src/ecomic-workbench.ts --extension agent/src/ecomic-history.ts","test":"python -m unittest discover -s tests_agent -p \"test_*.py\"","test:node":"node --test tests_node/*.test.mjs"},"engines":{"node":">=22"}
 }
