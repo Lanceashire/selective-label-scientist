@@ -1,35 +1,22 @@
-# ECOMIC Selective-Label Scientist — Final Gate Report
+# ECOMIC · Final Gate Report
 
 ## Result
 
 `competition_ready: false`
 
-The core research path is implemented and locally tested. Pi itself now hydrates, builds, and loads the ECOMIC extensions locally and on GitHub Actions. Readiness remains false until a real provider-driven Pi Scientist transcript is recorded and a non-credit historical dataset can pass its semantic/time and oracle-evaluation gates without inventing missing labels.
-
 | Gate | Status | Evidence |
 | --- | --- | --- |
-| Unified RPC → ResearchRuntime path | PASS | `agent_backend.rpc` and runtime integration tests |
-| Final evaluation cannot accept injected metrics | PASS | RPC schema regression test |
-| Oracle boundary / one final evaluation | PASS | dynamic protocol tests and evaluator guard |
-| Confirmed, versioned DomainSpec | PASS | separate decision/action confirmation test |
-| SQLite migrations, lineage and report export | PASS | migration, claim and report integration tests |
-| Deterministic replay restoration | PASS | persisted recipe/snapshot restore test |
-| Semantic availability and time audit | PASS | typed audit output with per-value statistics |
-| Real policies in dynamic environment | PASS | Random, CountOnly-MinCost, LRBE-Uncertainty |
-| WDBC non-credit benchmark | PASS — simulation only | 5 × 3 × 3 matrix, trajectories and CIs; explicitly `REPLAY_MODE_SIMULATION` |
-| San Diego historical non-credit audit | PASS WITH LIMITATIONS | 34,333 public vehicle-stop rows; source hash recorded; genuine search decision and strong decision-dependent label availability; time and administrative-value anomalies are retained as gates |
-| Chinese workbench / API-key safety | PASS (local static/RPC validation) | Pi extensions plus Node secret tests |
-| Pi runtime / extension load | PASS locally + remotely | local validation plus GitHub run `31434225882` passed catalog hydration, offline build, CLI and three ECOMIC extension loads |
-| Pi Live Agent | BLOCKED | no user-owned provider key or redacted live Pi tool-use transcript was supplied; no paid provider call is claimed |
-| Custom provider | BLOCKED | intentionally not promoted without Pi extension validation |
-| GitHub Actions | PASS | regular validation `31434188402` and manual no-key Pi integration `31434225882` both passed on the current implementation |
+| Unified RPC → ResearchRuntime | PASS | Public RPC dispatches only to `ResearchRuntime`; follow-up tools use that same route. |
+| Final metrics injection | PASS | Schema and RPC reject agent-supplied metrics; database enforces locked-plan, one-time evaluator-owned finalization. |
+| Research/Oracle boundary | PASS | Research-visible tools do not return hidden labels or final metrics. |
+| Confirmed versioned DomainSpec | PASS | Separate decision/action confirmations write SQLite versions. |
+| Chinese workbench and history | PASS | Chinese Pi TUI drives import, semantic/time/action confirmation, runs, finalization, reports and recovery. |
+| Formal Pi Scientist follow-up | PASS for runtime/tool integration | Agent Core exposes audit, parent-linked revision and visible-evidence comparison; real provider transcript remains absent. |
+| API key safety | PASS | Key is process memory or `~/.ecomic/credentials.env`, redacted and excluded from research records. |
+| Custom OpenAI-compatible registration | IMPLEMENTED, NOT LIVE-TESTED | Registered through Pi provider API; no user key/provider call claimed. |
+| WDBC benchmark | PASS — simulation only | Explicit 5 seeds × 3 budgets × 3 policies replay matrix. |
+| San Diego historical audit | PASS WITH LIMITATIONS | Real selection evidence, but incomplete outcomes/time prevent oracle evaluation. |
+| CI / five Pi extensions | PASS | [GitHub Actions #31438184612](https://github.com/Lanceashire/selective-label-scientist/actions/runs/31438184612) passed clean Pi hydration/build and five extension loads. |
+| Real paid Provider Agent | NOT YET EVIDENCED | Requires a user-owned credential and redacted tool-use transcript. |
 
-## Non-negotiable limitations
-
-- A fully labelled or synthetic replay dataset does not prove a selective-label mechanism or a cross-domain causal claim.
-- The WDBC benchmark must be called `REPLAY_MODE_SIMULATION`.
-- The San Diego audit must not impute missing contraband labels or treat its incomplete outcomes as an evaluation oracle.
-- Oracle metrics remain unavailable during research and cannot be supplied by any agent tool.
-- A proxy observation cost must not be represented as real-world harm/cost.
-
-See `FINAL_ENGINEERING_REPORT.md` for the implementation and evidence ledger.
+No component-existence claim is treated as readiness without a public-path invocation and test/CI evidence.
