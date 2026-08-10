@@ -16,7 +16,7 @@ if (args.includes("--headless")) runHeadlessImport();
 else {
   const cli = path.join(root, "vendor", "pi", "packages", "coding-agent", "dist", "cli.js");
   const extension = (name) => path.join(root, "agent", "src", name);
-  const child = spawn(process.execPath, [cli, "--extension", extension("pi-extension.ts"), "--extension", extension("ecomic-api-runtime.ts"), "--extension", extension("ecomic-workbench.ts"), "--extension", extension("ecomic-history.ts"), ...args], { cwd: root, stdio: "inherit", windowsHide: true });
+  const child = spawn(process.execPath, [cli, "--extension", extension("pi-extension.ts"), "--extension", extension("ecomic-api-runtime.ts"), "--extension", extension("ecomic-research-loop-tools.ts"), "--extension", extension("ecomic-workbench.ts"), "--extension", extension("ecomic-history.ts"), ...args], { cwd: root, stdio: "inherit", windowsHide: true });
   child.on("error", (error) => { console.error(`ECOMIC Pi workbench failed to start: ${error.message}`); process.exitCode = 1; });
   child.on("exit", (code) => { process.exitCode = code ?? 1; });
 }
