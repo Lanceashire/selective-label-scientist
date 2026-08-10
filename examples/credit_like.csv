@@ -1,0 +1,12 @@
+case_id,income,utilization,approved,default_label,review_cost,application_date
+c001,52000,0.42,approved,0,3.0,2026-02-01
+c002,31000,0.91,reviewed,1,5.0,2026-02-02
+c003,88000,0.25,approved,0,2.0,2026-02-03
+c004,42000,0.77,rejected,1,4.0,2026-02-04
+c005,67000,0.55,approved,0,3.0,2026-02-05
+c006,28000,0.96,rejected,1,5.0,2026-02-06
+c007,73000,0.31,approved,0,2.0,2026-02-07
+c008,39000,0.81,reviewed,1,4.0,2026-02-08
+c009,61000,0.48,approved,0,3.0,2026-02-09
+c010,47000,0.66,rejected,1,4.0,2026-02-10
+
