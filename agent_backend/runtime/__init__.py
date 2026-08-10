@@ -1,2 +1,2 @@
-from .service_v5 import ResearchRuntime
+from .service_v6 import ResearchRuntime
 __all__=["ResearchRuntime"]
