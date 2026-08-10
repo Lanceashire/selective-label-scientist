@@ -19,7 +19,6 @@ def dispatch(action:str,p:dict)->dict:
   if action=="observe_state":return r.observe_state(s)
   if action=="resume_environment":return r.resume_environment(s)
   if action=="resume_next_round":return r.resume_next_round(s,str(p["run_id"]))
-  if action=="generate_report":return r.generate_report(s)
   raise ValueError(f"unknown typed tool: {action}")
  finally:r.close()
 def main():
