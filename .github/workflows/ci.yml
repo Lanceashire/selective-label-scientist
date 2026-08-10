@@ -1,6 +1,6 @@
 name: validation
 
-on:
+'on':
   push:
   pull_request:
   workflow_dispatch:
@@ -36,7 +36,7 @@ jobs:
       - run: node --test tests_node/*.test.mjs
 
   pi-runtime-manual-integration:
-    if: github.event_name == 'workflow_dispatch' && inputs.run_pi == true
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_pi == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
