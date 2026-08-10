@@ -1,10 +1,38 @@
+/** SQLite-backed session picker for the ECOMIC Pi workbench. */
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
-function rpc(action:string,payload:Record<string,unknown>){const r=spawnSync(process.env.ECOMIC_PYTHON||"python",["-m","agent_backend.rpc"],{cwd:root,input:`${JSON.stringify({action,payload})}\n`,encoding:"utf8",windowsHide:true});return JSON.parse(r.stdout.trim().split(/\r?\n/).pop()||"{}");}
-export default function(pi:ExtensionAPI){
- pi.registerCommand("ecomic-final-auto",{description:"按 Session 自动锁定 Run 所属 Plan 并执行内部最终评价",handler:async(_args,ctx)=>{const sessionId=await ctx.ui.input("Session ID","从 /ecomic-home 或历史研究中获取");if(!sessionId)return;try{const snapshot:any=rpc("resume_environment",{session_id:sessionId.trim()});const runId=snapshot.run_id;if(!runId)throw new Error("当前 Session 没有可恢复的实验 Run");rpc("lock_run_plan",{session_id:sessionId.trim(),run_id:runId});const result:any=rpc("finalize_evaluation",{session_id:sessionId.trim(),run_id:runId});ctx.ui.notify(`最终评价完成：${result.status}。所有指标由私有 Oracle 内部计算。`,`info`);}catch(error:any){ctx.ui.notify(`最终评价失败：${String(error.message||error).replace(/Bearer\s+[^\s]+/gi,"Bearer [REDACTED]")}`,"error");}}});
- pi.registerCommand("ecomic-history",{description:"查看并恢复 ECOMIC 历史研究",handler:async(_args,ctx)=>{const sessionId=await ctx.ui.input("输入要恢复的 Session ID","SQLite 历史 Session ID");if(!sessionId)return;try{const snapshot:any=rpc("resume_next_round",{session_id:sessionId.trim(),run_id:await ctx.ui.input("Run ID","从环境快照中获取")||""});ctx.ui.setWidget("ecomic-history",[`历史研究已恢复：${sessionId}`,`Run: ${snapshot.run_id}`,`下一轮：${snapshot.next_round}`,`模式：${snapshot.mode}`,"Oracle: LOCKED 🔒"],{placement:"aboveEditor"});ctx.ui.notify("恢复状态已加载；下一实验将沿确定性 replay 轨迹继续。","info");}catch(error:any){ctx.ui.notify(`恢复失败：${String(error.message||error)}`,"error");}}});
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+function rpc(action: string, payload: Record<string, unknown>) {
+  const result = spawnSync(process.env.ECOMIC_PYTHON || "python", ["-m", "agent_backend.rpc"], { cwd: root, input: `${JSON.stringify({ action, payload })}\n`, encoding: "utf8", windowsHide: true });
+  if (result.error) throw result.error;
+  const output = JSON.parse(result.stdout.trim().split(/\r?\n/).pop() || "{}");
+  if (output.status === "ERROR") throw new Error(output.message || "运行时调用失败");
+  return output;
+}
+
+export default function (pi: ExtensionAPI) {
+  pi.registerCommand("ecomic-history", {
+    description: "从 SQLite 会话清单选择、恢复和查看历史 ECOMIC 研究",
+    handler: async (_args, ctx) => {
+      try {
+        const sessions: any[] = (rpc("list_sessions", {}) as any).sessions || [];
+        if (!sessions.length) { ctx.ui.notify("尚无历史研究。", "info"); return; }
+        const options = sessions.map((item) => `${item.session_id} · ${item.status} · ${String(item.updated_at).slice(0, 19)}`);
+        const chosen = await ctx.ui.select("历史研究", options);
+        if (!chosen) return;
+        const sessionId = chosen.split(" · ")[0];
+        const state: any = rpc("observe_state", { session_id: sessionId });
+        let resumeText = "尚无实验快照";
+        try {
+          const snapshot: any = rpc("resume_environment", { session_id: sessionId });
+          resumeText = `最近 Run：${snapshot.run_id || "无"} · 下一轮：${snapshot.round ?? "未知"}`;
+        } catch { /* A new session legitimately has no snapshot. */ }
+        ctx.ui.setWidget("ecomic-history", ["ECOMIC 历史研究", `Session：${sessionId}`, `状态：${state.status}`, `假设：${state.hypotheses} · 计划：${state.plans} · Runs：${state.runs}`, resumeText, "使用 /ecomic-report 导出该研究的报告。"], { placement: "aboveEditor" });
+        ctx.ui.notify("历史研究已载入。请使用工作台继续；恢复后的动态轮次由确定性 replay 配方重建。", "info");
+      } catch (error: any) { ctx.ui.notify(`恢复失败：${String(error?.message || error).replace(/Bearer\s+[^\s]+/gi, "Bearer [REDACTED]")}`, "error"); }
+    },
+  });
 }
