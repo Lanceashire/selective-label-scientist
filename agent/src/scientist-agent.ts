@@ -1,6 +1,6 @@
 /** Real Pi Agent Core integration. MockLLM remains CI-only in Python. */
 import { Agent, type AgentTool } from "@earendil-works/pi-agent-core";
-import { Type } from "@earendil-works/pi-ai";
+import { Type, streamSimple, type Api, type Model } from "@earendil-works/pi-ai/compat";
 import { ECOMIC_SYSTEM_PROMPT } from "./system-prompt.js";
 
 export type RuntimeCall = (action: string, payload: Record<string, unknown>) => Promise<unknown>;
@@ -17,9 +17,7 @@ function tool(name: string, parameters: any, call: RuntimeCall): AgentTool<any> 
   };
 }
 
-export function createScientistAgent(models: any, provider: string, modelId: string, callRuntime: RuntimeCall, sessionId = `ecomic-${Date.now()}`) {
-  const model = models.getModel(provider, modelId);
-  if (!model) throw new Error(`Model unavailable: ${provider}/${modelId}`);
+export function createScientistAgent(model: Model<Api>, apiKey: string, callRuntime: RuntimeCall, sessionId = `ecomic-${Date.now()}`) {
   const tools = [
     tool("observe_state", session, callRuntime),
     tool("resume_environment", session, callRuntime),
@@ -38,14 +36,18 @@ export function createScientistAgent(models: any, provider: string, modelId: str
   return new Agent({
     initialState: {
       systemPrompt: `${ECOMIC_SYSTEM_PROMPT}\n\nBefore experiments, establish and separately confirm the DomainSpec decision mapping and observation action. Never access Oracle data, never supply final metrics, allow INCONCLUSIVE outcomes, never chase an ungrounded policy win, and persist every hypothesis or revision through a typed tool.`,
-      model, tools, thinkingLevel: "medium",
+      model,
+      tools,
+      thinkingLevel: "medium",
     },
-    streamFn: models.streamSimple.bind(models),
+    streamFn: streamSimple,
+    getApiKey: () => apiKey,
     sessionId,
     toolExecution: "sequential",
     beforeToolCall: async ({ toolCall, args }: any) => {
       if (/oracle|hidden[._-]?label|shell|bash/i.test(toolCall.name)) return { block: true, reason: "Oracle and arbitrary shell are forbidden", terminate: true };
       if (toolCall.name === "ecomic_finalize_evaluation" && "metrics" in args) return { block: true, reason: "Final metrics are evaluator-owned", terminate: true };
+      return undefined;
     },
   });
 }
