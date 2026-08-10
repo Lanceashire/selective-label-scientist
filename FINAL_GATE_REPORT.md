@@ -4,9 +4,7 @@
 
 `competition_ready: false`
 
-The core research path is implemented and locally tested. Readiness remains
-false until the live Pi runtime/provider gate, a real historical non-credit
-dataset gate, and a remote CI observation are completed.
+The core research path is implemented and locally tested. Readiness remains false until the live Pi runtime/provider gate and a real historical non-credit dataset gate are completed.
 
 | Gate | Status | Evidence |
 | --- | --- | --- |
@@ -22,15 +20,13 @@ dataset gate, and a remote CI observation are completed.
 | Chinese workbench / API-key safety | PASS (local static/RPC validation) | Pi extensions plus Node secret tests |
 | Pi Live Agent | BLOCKED | Pi model catalog hydration timed out; no live provider claimed |
 | Custom provider | BLOCKED | intentionally not promoted without Pi extension validation |
-| GitHub Actions remote result | PENDING | workflow authored, remote run not observed |
+| GitHub Actions remote result | PASS | `validation` run `31432429985`: Ubuntu/Windows × Python 3.10/3.12/3.13 plus Node all passed; Pi was correctly skipped without explicit dispatch input |
 
 ## Non-negotiable limitations
 
-- A fully labelled or synthetic replay dataset does not prove a selective-label
-  mechanism or a cross-domain performance claim.
+- A fully labelled or synthetic replay dataset does not prove a selective-label mechanism or a cross-domain performance claim.
 - The benchmark must be called `REPLAY_MODE_SIMULATION`.
-- Oracle metrics remain unavailable during research and cannot be supplied by
-  any agent tool.
+- Oracle metrics remain unavailable during research and cannot be supplied by any agent tool.
 - A proxy observation cost must not be represented as real-world harm/cost.
 
 See `FINAL_ENGINEERING_REPORT.md` for the implementation and evidence ledger.

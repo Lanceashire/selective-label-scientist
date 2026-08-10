@@ -4,11 +4,7 @@
 
 `competition_ready: false`
 
-This repository now has one formal, SQLite-backed research path from typed Pi
-tools/RPC to `ResearchRuntime`, dynamic selective-label experiments, guarded
-final evaluation, Claim Guard, and report export. It is **not** represented as
-competition-ready because a live Pi build/provider transcript and a real
-historical non-credit selection-mechanism dataset have not been verified.
+This repository has one formal, SQLite-backed research path from typed Pi tools/RPC to `ResearchRuntime`, dynamic selective-label experiments, guarded final evaluation, Claim Guard, and report export. It is not competition-ready because a live Pi build/provider transcript and a real historical non-credit selection-mechanism dataset have not been verified.
 
 ## Acceptance matrix
 
@@ -31,7 +27,7 @@ historical non-credit selection-mechanism dataset have not been verified.
 | Reproducible feature fallback | PASS | No Python built-in `hash()` is used for nonnumeric values; SHA-256 supplies stable conversion. |
 | Non-credit benchmark | PASS as REPLAY simulation only | WDBC 5 seeds × 3 budgets × 3 policies; matrix, trajectories, effect sizes and normal 95% CIs are retained. |
 | Report artifacts | PASS | `agent_runs/<session>/final_report.md`, `manifest.json`, `exported_actions.jsonl`, `plots/`, `artifacts/`. |
-| CI definition | IMPLEMENTED, REMOTE RUN NOT OBSERVED | Python OS/version matrix, Node schema/security checks, and manual Pi runtime integration gate are in workflow. |
+| CI definition | PASS (regular matrix) | GitHub Actions `validation` run `31432429985` passed all six Python OS/version jobs and the Node schema/security job. The Pi build remains an explicit manual external gate. |
 
 ## Verified local commands
 
@@ -41,40 +37,20 @@ node --test tests_node/*.test.mjs
 python scripts/run_noncredit_benchmark.py
 ```
 
-At this checkpoint the Python suite completed 17 tests with one expected skip
-for the absent, read-only LexiRiskLabel vendor reference; the Node suite
-completed 3 tests.
+At this checkpoint the Python suite completed 17 tests with one expected skip for the absent, read-only LexiRiskLabel vendor reference; the Node suite completed 3 tests.
 
 ## Pi live-runtime gate
 
-The Pi repository was cloned and dependencies installed locally. Its offline
-build cannot currently complete because the shallow clone lacks generated model
-catalog data and the hydration request to `models.dev` timed out. Consequently:
+The Pi repository was cloned and dependencies installed locally. Its offline build cannot currently complete because the shallow clone lacks generated model catalog data and the hydration request to `models.dev` timed out. Consequently no provider API key was used, no paid API request was made, no live Pi agent transcript is claimed, and the workflow keeps Pi build/load as an explicit manual integration gate.
 
-- no provider API key was used;
-- no paid API request was made;
-- no live Pi agent transcript is claimed;
-- the workflow keeps Pi build/load as an explicit manual integration gate.
-
-When network access to Pi model hydration is available, run its manual workflow
-or locally run `npm run hydrate:model-data; npm run build:offline` in
-`vendor/pi`, then start ECOMIC with the documented Pi extension command.
+When network access to Pi model hydration is available, run its manual workflow with `run_pi=true` or locally run `npm run hydrate:model-data; npm run build:offline` in `vendor/pi`, then start ECOMIC with the documented Pi extension command.
 
 ## Benchmark interpretation
 
-The benchmark is deliberately tagged `REPLAY_MODE_SIMULATION`. WDBC is a real
-public non-credit dataset, but its decision field, cost and timing are synthetic
-for protocol testing. It does not support a clinical or cross-domain causal
-claim. The effect-size output can be negative; ECOMIC preserves that result
-rather than forcing a “policy wins” narrative.
+The benchmark is deliberately tagged `REPLAY_MODE_SIMULATION`. WDBC is a real public non-credit dataset, but its decision field, cost and timing are synthetic for protocol testing. It does not support a clinical or cross-domain causal claim. The effect-size output can be negative; ECOMIC preserves that result rather than forcing a policy-win narrative.
 
 ## Required next evidence before readiness can change
 
-1. Complete the Pi model-data hydration/build and record a live, redacted
-   provider transcript with a tool-capable model.
-2. Register a real non-credit dataset with human-confirmed historical decision,
-   actual label-visibility mechanism, observation semantics, costs and time
-   ordering.
-3. Observe a successful GitHub Actions run on the target repository/branch.
-4. Implement and verify a registered Pi custom OpenAI-compatible provider if
-   that option is required for the competition deployment.
+1. Complete the Pi model-data hydration/build and record a live, redacted provider transcript with a tool-capable model.
+2. Register a real non-credit dataset with human-confirmed historical decision, actual label-visibility mechanism, observation semantics, costs and time ordering.
+3. Implement and verify a registered Pi custom OpenAI-compatible provider if that option is required for the competition deployment.
