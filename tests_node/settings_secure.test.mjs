@@ -3,19 +3,28 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { PROVIDERS, checkConfiguration, configPath, credentialsPath, redactSecret, redactText, saveCredential, saveNonSecretConfig } from "../agent/src/settings.mjs";
+import { PROVIDERS, checkConfiguration, configPath, credentialsPath, hydrateCredentialToProcess, loadCredential, loadNonSecretConfig, redactSecret, redactText, saveCredential, saveNonSecretConfig } from "../agent/src/settings.mjs";
 
-test("credentials stay outside repository and all secret forms are redacted", () => {
+test("credentials stay outside repository, survive provider switching, and all secret forms are redacted", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "ecomic-settings-"));
-  saveNonSecretConfig({ provider: "deepseek", model: "deepseek-chat", base_url: null }, home);
+  saveNonSecretConfig({ provider: "deepseek", model: "deepseek-chat", base_url: null, tool_calling_verified: true }, home);
   saveCredential("deepseek", "sk-abcdefghijklmnopqrstuvwxyz23af", home);
+  saveCredential("openai", "sk-openai-test-123456", home);
   assert.equal(JSON.parse(fs.readFileSync(configPath(home), "utf8")).provider, "deepseek");
   assert.match(fs.readFileSync(credentialsPath(home), "utf8"), /DEEPSEEK_API_KEY=/);
+  assert.match(fs.readFileSync(credentialsPath(home), "utf8"), /OPENAI_API_KEY=/);
+  assert.equal(loadCredential("deepseek", home), "sk-abcdefghijklmnopqrstuvwxyz23af");
+  assert.equal(hydrateCredentialToProcess("openai", home), "sk-openai-test-123456");
+  assert.equal(process.env.OPENAI_API_KEY, "sk-openai-test-123456");
+  assert.equal(loadNonSecretConfig(home).tool_calling_verified, true);
   assert.equal(redactSecret("sk-abcdefghijklmnopqrstuvwxyz23af"), "sk-****23af");
   assert.equal(redactText("Authorization: Bearer super-secret"), "Authorization: Bearer [REDACTED]");
   assert.equal(redactText("token=super-secret"), "token=[REDACTED]");
   assert.equal(checkConfiguration({ provider: "deepseek", model: "deepseek-chat" }, "key").ok, true);
-  assert.equal(checkConfiguration({ provider: "custom_openai_compatible", model: "m", base_url: "https://example.test" }, "key").ok, false);
+  assert.equal(checkConfiguration({ provider: "custom_openai_compatible", model: "m", base_url: "https://example.test" }, "key").ok, true);
+  assert.equal(PROVIDERS.google.keyEnv, "GEMINI_API_KEY");
+  assert.equal(PROVIDERS.minimax.keyEnv, "MINIMAX_API_KEY");
   assert.equal(PROVIDERS.qwen.piProvider, "qwen-token-plan-cn");
+  delete process.env.OPENAI_API_KEY;
   fs.rmSync(home, { recursive: true, force: true });
 });
