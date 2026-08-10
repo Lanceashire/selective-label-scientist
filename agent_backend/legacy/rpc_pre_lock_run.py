@@ -1,9 +1,9 @@
-"""Typed RPC facade for the single ResearchRuntime."""
+"""Typed RPC facade; every action delegates to ResearchRuntime."""
 from __future__ import annotations
-import json,sys
+import json, sys
 from pathlib import Path
 from .runtime import ResearchRuntime
-def dispatch(action:str,payload:dict)->dict:
+def dispatch(action: str, payload: dict) -> dict:
  if action=="finalize_evaluation" and "metrics" in payload: raise ValueError("schema validation failed: finalize_evaluation accepts only session_id and run_id; metrics are evaluator-owned")
  runtime=ResearchRuntime(payload.get("state_dir") or Path.home()/".ecomic")
  try:
@@ -13,7 +13,6 @@ def dispatch(action:str,payload:dict)->dict:
   if action=="plan_experiment": return runtime.plan_experiment(str(payload["session_id"]),str(payload["hypothesis_id"]),str(payload["policy"]),float(payload["budget"]),int(payload["rounds"]))
   if action=="run_experiment": return runtime.run_experiment(str(payload["session_id"]),str(payload["plan_id"]),str(payload["policy"]),float(payload["budget"]),int(payload.get("seed",0)),int(payload["rounds"]))
   if action=="lock_research_plan": return runtime.lock_research_plan(str(payload["session_id"]),str(payload["plan_id"]))
-  if action=="lock_run_plan": return runtime.lock_run_plan(str(payload["session_id"]),str(payload["run_id"]))
   if action=="finalize_evaluation": return runtime.finalize_evaluation(str(payload["session_id"]),str(payload["run_id"]))
   if action=="claim_guard": return runtime.claim_guard(str(payload["session_id"]),str(payload["claim"]),str(payload.get("domain_scope","run-local")),str(payload.get("dataset_scope","current-dataset")),str(payload.get("policy_scope","current-policy")),str(payload.get("budget_scope","current-budget")),str(payload.get("metric_scope","feedback_count")),list(payload.get("evidence_run_ids",[])),str(payload.get("strength","cautious")))
   if action=="observe_state": return runtime.observe_state(str(payload["session_id"]))
@@ -22,8 +21,8 @@ def dispatch(action:str,payload:dict)->dict:
  finally: runtime.close()
 def main()->int:
  for line in sys.stdin:
-  try:r=json.loads(line);out=dispatch(str(r.get("action","")),dict(r.get("payload",{})))
-  except Exception as e:out={"status":"ERROR","message":str(e)}
-  print(json.dumps(out,ensure_ascii=False),flush=True)
+  try: r=json.loads(line); output=dispatch(str(r.get("action","")),dict(r.get("payload",{})))
+  except Exception as exc: output={"status":"ERROR","message":str(exc)}
+  print(json.dumps(output,ensure_ascii=False),flush=True)
  return 0
-if __name__=="__main__":raise SystemExit(main())
+if __name__=="__main__": raise SystemExit(main())
