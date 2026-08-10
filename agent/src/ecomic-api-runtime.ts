@@ -1,4 +1,4 @@
-/** Persisted provider bridge, explicit connection probe, and gated Agent Core entry. */
+/** 持久化 Provider 桥接、中文连接提示与受门禁保护的 Pi Scientist。 */
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -9,95 +9,19 @@ import { getActiveSession } from "./ecomic-workbench.ts";
 import { PROVIDERS, hydrateCredentialToProcess, loadNonSecretConfig, redactText, saveNonSecretConfig } from "./settings.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-function runtimeCall(action: string, payload: Record<string, unknown>): Promise<unknown> {
-  const result = spawnSync(process.env.ECOMIC_PYTHON || "python", ["-m", "agent_backend.rpc"], { cwd: root, input: `${JSON.stringify({ action, payload })}\n`, encoding: "utf8", windowsHide: true });
-  if (result.error) return Promise.reject(result.error);
-  try {
-    const output = JSON.parse(result.stdout.trim().split(/\r?\n/).pop() || "{}");
-    if (output.status === "ERROR") throw new Error(output.message || "ResearchRuntime failed");
-    return Promise.resolve(output);
-  } catch (error) { return Promise.reject(error); }
-}
-function configurePiProvider(pi: ExtensionAPI, config: ReturnType<typeof loadNonSecretConfig>): void {
-  const provider = config.provider ? PROVIDERS[config.provider] : undefined;
-  if (!provider || !config.base_url) return;
-  if (config.provider === "custom_openai_compatible") {
-    if (!config.model) return;
-    pi.registerProvider(provider.piProvider, {
-      name: "ECOMIC Custom OpenAI-Compatible", baseUrl: config.base_url, apiKey: "$ECOMIC_CUSTOM_API_KEY", api: "openai-completions", authHeader: true,
-      models: [{ id: config.model, name: config.model, reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 4096 }],
-    });
-    return;
-  }
-  pi.registerProvider(provider.piProvider, { baseUrl: config.base_url });
-}
-function connectionError(error: unknown): string {
-  const message = redactText(error instanceof Error ? error.message : String(error));
-  if (/401|403/.test(message)) return "Authentication failed: the API key is invalid, expired, or lacks model permission.";
-  if (/404/.test(message)) return "The configured model or API Base URL was not found.";
-  if (/429/.test(message)) return "The provider rate limit or account quota was reached.";
-  if (/timeout|timed out|ETIMEDOUT/i.test(message)) return "Network connection timed out.";
-  return `Connection failed: ${message}`;
-}
-
+function runtimeCall(action: string, payload: Record<string, unknown>): Promise<unknown> { const result = spawnSync(process.env.ECOMIC_PYTHON || "python", ["-m", "agent_backend.rpc"], { cwd: root, input: `${JSON.stringify({ action, payload })}\n`, encoding: "utf8", windowsHide: true }); if (result.error) return Promise.reject(result.error); try { const output = JSON.parse(result.stdout.trim().split(/\r?\n/).pop() || "{}"); if (output.status === "ERROR") throw new Error(output.message || "ResearchRuntime 调用失败"); return Promise.resolve(output); } catch (error) { return Promise.reject(error); } }
+function configurePiProvider(pi: ExtensionAPI, config: ReturnType<typeof loadNonSecretConfig>) { const provider = config.provider ? PROVIDERS[config.provider] : undefined; if (!provider || !config.base_url) return; if (config.provider === "custom_openai_compatible") { if (!config.model) return; pi.registerProvider(provider.piProvider, { name: "ECOMIC 自定义 OpenAI-Compatible", baseUrl: config.base_url, apiKey: "$ECOMIC_CUSTOM_API_KEY", api: "openai-completions", authHeader: true, models: [{ id: config.model, name: config.model, reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 4096 }] }); return; } pi.registerProvider(provider.piProvider, { baseUrl: config.base_url }); }
+function connectionError(error: unknown) { const message = redactText(error instanceof Error ? error.message : String(error)); if (/401|403/.test(message)) return "API Key 无效、已失效，或当前账户没有该模型权限。"; if (/404/.test(message)) return "模型 ID 或 API Base URL 不存在。"; if (/429/.test(message)) return "请求频率或账户额度受限。"; if (/timeout|timed out|ETIMEDOUT/i.test(message)) return "网络连接超时，请检查网络、代理或 Provider 状态。"; return `API 连接失败：${message}`; }
 export default function (pi: ExtensionAPI) {
-  pi.on("session_start", async (_event, ctx) => {
-    const config = loadNonSecretConfig();
-    if (config.provider) hydrateCredentialToProcess(config.provider);
-    configurePiProvider(pi, config);
-    if (config.provider && config.model) {
-      ctx.ui.setStatus("ecomic-model", `${PROVIDERS[config.provider].label} / ${config.model} / ${config.tool_calling_verified ? "tool calling verified" : "not verified"}`);
-    }
-  });
-  pi.registerCommand("ecomic-test-connection", {
-    description: "Run one minimal real Pi connection and tool-calling probe (may consume a few tokens).",
-    handler: async (_args, ctx) => {
-      const config = loadNonSecretConfig();
-      if (!config.provider || !config.model) { ctx.ui.notify("Configure Provider, Model ID, and API Key first with /ecomic-settings.", "warning"); return; }
-      const provider = PROVIDERS[config.provider];
-      const key = hydrateCredentialToProcess(config.provider);
-      if (!key) { ctx.ui.notify("No API Key is available. Enter it in /ecomic-settings or save it in the local private credential file.", "warning"); return; }
-      configurePiProvider(pi, config);
-      const model = ctx.modelRegistry.find(provider.piProvider, config.model);
-      if (!model) { ctx.ui.notify("The model is absent from the active Pi registry. Check Provider/Model ID and restart ECOMIC if needed.", "error"); return; }
-      if (!await ctx.ui.confirm("Test live connection", "This sends one minimal tool-calling probe through Pi and may consume a few API tokens. Continue?")) return;
-      const message: UserMessage = { role: "user", content: [{ type: "text", text: "Call ecomic_connection_probe exactly once with ok=true. Do not add prose." }], timestamp: Date.now() };
-      try {
-        const response = await ctx.modelRegistry.complete(model, { messages: [message], tools: [{ name: "ecomic_connection_probe", description: "Harmless ECOMIC connection probe.", parameters: Type.Object({ ok: Type.Boolean() }) }] }, { maxTokens: 32 });
-        const toolVerified = response.stopReason === "toolUse" && response.content.some((part) => part.type === "toolCall" && part.name === "ecomic_connection_probe");
-        saveNonSecretConfig({ ...config, tool_calling_verified: toolVerified, last_connection_test: new Date().toISOString() });
-        ctx.ui.setStatus("ecomic-model", `${provider.label} / ${config.model} / ${toolVerified ? "tool calling verified" : "tool calling not verified"}`);
-        ctx.ui.notify(toolVerified ? "Connection and tool calling were verified. You can now run /ecomic-scientist." : "Connection returned, but the model did not make the required tool call. Scientist Agent remains blocked.", toolVerified ? "info" : "warning");
-      } catch (error) {
-        saveNonSecretConfig({ ...config, tool_calling_verified: false, last_connection_test: new Date().toISOString() });
-        ctx.ui.notify(connectionError(error), "error");
-      }
-    },
-  });
-  pi.registerCommand("ecomic-scientist", {
-    description: "Run the formally gated Pi Agent Core scientist on the current ECOMIC session.",
-    handler: async (_args, ctx) => {
-      const sessionId = getActiveSession();
-      const config = loadNonSecretConfig();
-      if (!sessionId) { ctx.ui.notify("Create a research session or restore one with /ecomic-history first.", "warning"); return; }
-      if (!config.provider || !config.model || !config.tool_calling_verified) { ctx.ui.notify("Run /ecomic-settings and the verified /ecomic-test-connection first.", "warning"); return; }
-      const key = hydrateCredentialToProcess(config.provider);
-      const provider = PROVIDERS[config.provider];
-      configurePiProvider(pi, config);
-      const model = ctx.modelRegistry.find(provider.piProvider, config.model);
-      if (!key || !model) { ctx.ui.notify("The current model or credential is unavailable. Recheck API settings.", "error"); return; }
-      const question = await ctx.ui.input("Research question for Scientist Agent", "Example: compare LRBE-Uncertainty with CountOnly-MinCost under a low budget.");
-      if (!question?.trim()) return;
-      const agent = createScientistAgent(model, key, runtimeCall, `ecomic-${sessionId}`);
-      agent.subscribe((event) => {
-        if (event.type === "tool_execution_start") ctx.ui.setStatus("ecomic-agent", `Scientist Agent is calling ${event.toolName}`);
-        if (event.type === "agent_end") ctx.ui.setStatus("ecomic-agent", "Scientist Agent finished; results are persisted in SQLite.");
-      });
-      try {
-        await agent.prompt(`Current ECOMIC session_id is ${sessionId}. ${question.trim()} You must use only ECOMIC typed tools, begin with observe_state, and stop with an honest conclusion when evidence is insufficient.`);
-        if (agent.state.errorMessage) throw new Error(agent.state.errorMessage);
-        ctx.ui.notify("Scientist Agent completed this typed-tool cycle. Use /ecomic-report for the SQLite-backed research report.", "info");
-      } catch (error) { ctx.ui.notify(connectionError(error), "error"); }
-    },
-  });
+  pi.on("session_start", async (_event, ctx) => { const config = loadNonSecretConfig(); if (config.provider) hydrateCredentialToProcess(config.provider); configurePiProvider(pi, config); if (config.provider && config.model) ctx.ui.setStatus("ecomic-model", `${PROVIDERS[config.provider].label} · ${config.model} · ${config.tool_calling_verified ? "工具调用已验证" : "工具调用未验证"}`); });
+  pi.registerCommand("ecomic-test-connection", { description: "通过 Pi 发起一次最小真实连接与工具调用探针（可能消耗少量 Token）", handler: async (_args, ctx) => {
+    const config = loadNonSecretConfig(); if (!config.provider || !config.model) { ctx.ui.notify("请先用 /ecomic-settings 配置 Provider、模型 ID 与 API Key。", "warning"); return; } const provider = PROVIDERS[config.provider]; const key = hydrateCredentialToProcess(config.provider); if (!key) { ctx.ui.notify("未找到 API Key。请在 /ecomic-settings 输入，或保存到本机私有凭据文件。", "warning"); return; } configurePiProvider(pi, config); const model = ctx.modelRegistry.find(provider.piProvider, config.model); if (!model) { ctx.ui.notify("Pi 当前模型目录中找不到该模型，请检查 Provider、模型 ID 后重启 ECOMIC。", "error"); return; }
+    if (!await ctx.ui.confirm("真实测试连接", "将通过 Pi 向该模型发送一次最小 Tool Calling 探针，可能产生少量 API Token 消耗。是否继续？")) return;
+    const message: UserMessage = { role: "user", content: [{ type: "text", text: "Call ecomic_connection_probe exactly once with ok=true. Do not add prose." }], timestamp: Date.now() };
+    try { const response = await ctx.modelRegistry.complete(model, { messages: [message], tools: [{ name: "ecomic_connection_probe", description: "Harmless ECOMIC connection probe.", parameters: Type.Object({ ok: Type.Boolean() }) }] }, { maxTokens: 32 }); const verified = response.stopReason === "toolUse" && response.content.some((part) => part.type === "toolCall" && part.name === "ecomic_connection_probe"); saveNonSecretConfig({ ...config, tool_calling_verified: verified, last_connection_test: new Date().toISOString() }); ctx.ui.setStatus("ecomic-model", `${provider.label} · ${config.model} · ${verified ? "工具调用已验证" : "工具调用未验证"}`); ctx.ui.notify(verified ? "认证成功，模型可调用，Tool Calling 已验证。现在可启动 /ecomic-scientist。" : "基础连接成功，但模型未按要求返回 Tool Call；Scientist Agent 将保持阻止状态。", verified ? "info" : "warning"); } catch (error) { saveNonSecretConfig({ ...config, tool_calling_verified: false, last_connection_test: new Date().toISOString() }); ctx.ui.notify(connectionError(error), "error"); }
+  } });
+  pi.registerCommand("ecomic-scientist", { description: "在当前 ECOMIC Session 上启动经验证的 Pi Agent Core Scientist", handler: async (_args, ctx) => {
+    const sessionId = getActiveSession(); const config = loadNonSecretConfig(); if (!sessionId) { ctx.ui.notify("请先新建研究，或通过 /ecomic-history 恢复一个 Session。", "warning"); return; } if (!config.provider || !config.model || !config.tool_calling_verified) { ctx.ui.notify("请先完成 /ecomic-settings，并通过 /ecomic-test-connection 验证 Tool Calling。", "warning"); return; } const key = hydrateCredentialToProcess(config.provider); const provider = PROVIDERS[config.provider]; configurePiProvider(pi, config); const model = ctx.modelRegistry.find(provider.piProvider, config.model); if (!key || !model) { ctx.ui.notify("当前模型或凭据不可用，请重新检查 API 设置。", "error"); return; }
+    const question = await ctx.ui.input("交给 Scientist Agent 的研究问题", "例如：低预算下比较 LRBE-Uncertainty 与 CountOnly-MinCost。"); if (!question?.trim()) return; const agent = createScientistAgent(model, key, runtimeCall, `ecomic-${sessionId}`); agent.subscribe((event) => { if (event.type === "tool_execution_start") ctx.ui.setStatus("ecomic-agent", `Scientist Agent 正在调用 ${event.toolName}`); if (event.type === "agent_end") ctx.ui.setStatus("ecomic-agent", "Scientist Agent 已结束，结果已写入 SQLite。"); }); try { await agent.prompt(`Current ECOMIC session_id is ${sessionId}. ${question.trim()} You must use only ECOMIC typed tools, begin with observe_state, and stop with an honest conclusion when evidence is insufficient.`); if (agent.state.errorMessage) throw new Error(agent.state.errorMessage); ctx.ui.notify("Scientist Agent 已完成本轮受控工具循环；可用 /ecomic-report 查看 SQLite 驱动的科研报告。", "info"); } catch (error) { ctx.ui.notify(connectionError(error), "error"); }
+  } });
 }
