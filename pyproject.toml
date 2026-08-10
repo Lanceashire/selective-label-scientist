@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "selective-label-scientist"
+version = "0.2.0"
+description = "Auditable cross-domain selective-label scientist agent"
+requires-python = ">=3.10,<3.14"
+dependencies = ["duckdb>=1.1,<2", "numpy>=1.26,<3", "scipy>=1.11,<2", "scikit-learn>=1.4,<2", "pyarrow>=14,<30"]
+
+[tool.setuptools]
+packages = ["agent_backend", "agent_backend.agent", "agent_backend.domains", "agent_backend.environment", "agent_backend.evidence", "agent_backend.ingestion", "agent_backend.models", "agent_backend.persistence", "agent_backend.policies"]
