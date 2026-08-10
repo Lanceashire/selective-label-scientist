@@ -1,0 +1,67 @@
+{
+  "status": "NEEDS_USER_INPUT",
+  "checks": [
+    {
+      "name": "decision_mapping_confirmed",
+      "status": "PASS",
+      "detail": "Historical decision values require explicit human confirmation."
+    },
+    {
+      "name": "label_availability",
+      "status": "PASS",
+      "detail": "Decision-dependent label availability is descriptive evidence only; semantic confirmation remains required.",
+      "mask": {
+        "target_column": "contraband_found",
+        "observed_count": 3574,
+        "missing_count": 30759,
+        "missing_rate": 0.8959019019602132,
+        "availability_by_row": "private"
+      },
+      "by_decision_value": [
+        {
+          "decision_value": "",
+          "sample_count": 7,
+          "visible_label_count": 0,
+          "visible_label_rate": 0.0
+        },
+        {
+          "decision_value": "N",
+          "sample_count": 31338,
+          "visible_label_count": 586,
+          "visible_label_rate": 0.01869934265109452
+        },
+        {
+          "decision_value": "Y",
+          "sample_count": 2988,
+          "visible_label_count": 2988,
+          "visible_label_rate": 1.0
+        }
+      ],
+      "max_visible_rate_difference": 1.0,
+      "odds_ratio": {
+        "comparison": {
+          "higher_visibility": "Y",
+          "lower_visibility": ""
+        },
+        "odds_ratio": 89655.0,
+        "ci_95": [
+          1667.0958905066539,
+          4821569.695404336
+        ],
+        "method": "Haldane-Anscombe corrected descriptive 2x2 odds ratio"
+      }
+    },
+    {
+      "name": "time_order",
+      "status": "NEEDS_USER_INPUT",
+      "detail": "Decision and outcome time fields require confirmation."
+    },
+    {
+      "name": "observation_action",
+      "status": "NEEDS_USER_INPUT",
+      "detail": "A human must separately confirm that the observation action is reversible and simulatable; neither defaults to true."
+    }
+  ],
+  "description": "Real City of San Diego vehicle-stop history; missing and unexpected administrative values are retained, never imputed.",
+  "semantic_confirmation_required": true
+}
