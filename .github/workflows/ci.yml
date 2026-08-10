@@ -1,5 +1,16 @@
 name: validation
-on: [push, pull_request, workflow_dispatch]
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_pi:
+        description: "Run external Pi model-data hydration/build gate (requires models.dev access)"
+        required: false
+        default: false
+        type: boolean
+
 jobs:
   python:
     strategy:
@@ -15,6 +26,7 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -e .
       - run: python -m unittest discover -s tests_agent -p 'test_*.py' -v
+
   node-security-and-schema:
     runs-on: ubuntu-latest
     steps:
@@ -22,8 +34,9 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
       - run: node --test tests_node/*.test.mjs
+
   pi-runtime-manual-integration:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.run_pi == true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
