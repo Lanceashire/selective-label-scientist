@@ -1,0 +1,9 @@
+{
+  "source": "UCI Wisconsin Diagnostic Breast Cancer via sklearn.datasets.load_breast_cancer",
+  "license": "UCI dataset terms; verify before competition redistribution",
+  "domain": "medical diagnosis (non-credit)",
+  "decision_semantics": "synthetic replay threshold; not historical clinical workflow",
+  "visibility_semantics": "private evaluator retains labels; protocol hides candidate labels",
+  "simulation": true,
+  "matrix": "5 seeds × 3 budgets × 3 policies"
+}

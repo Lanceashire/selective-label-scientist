@@ -1,11 +1,37 @@
-name: test
-on: [push, pull_request]
+name: validation
+on: [push, pull_request, workflow_dispatch]
 jobs:
   python:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.10', '3.12', '3.13']
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
+        with: { python-version: ${{ matrix.python }} }
+      - run: python -m pip install --upgrade pip
       - run: pip install -e .
       - run: python -m unittest discover -s tests_agent -p 'test_*.py' -v
+  node-security-and-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: node --test tests_node/*.test.mjs
+  pi-runtime-manual-integration:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: git clone --depth 1 https://github.com/earendil-works/pi vendor/pi
+      - run: npm install --ignore-scripts
+        working-directory: vendor/pi
+      - run: npm run hydrate:model-data && npm run build:offline
+        working-directory: vendor/pi
+      - run: node vendor/pi/packages/coding-agent/dist/cli.js --help

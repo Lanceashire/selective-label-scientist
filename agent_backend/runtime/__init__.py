@@ -1,3 +1,2 @@
-from .service_patch import ResearchRuntime
-
+from .service_v3 import ResearchRuntime
 __all__ = ["ResearchRuntime"]
