@@ -4,7 +4,7 @@
 
 `competition_ready: false`
 
-The repository has one formal, SQLite-backed research path from typed Pi tools/RPC to `ResearchRuntime`, dynamic selective-label experiments, guarded final evaluation, Claim Guard, and report export. The Pi runtime now builds locally and loads the ECOMIC extensions. Competition readiness remains false because no configured provider has produced a live, redacted Scientist tool-use transcript and the real historical non-credit dataset still lacks a separately confirmed outcome time and a complete oracle label set.
+The repository has one formal, SQLite-backed research path from typed Pi tools/RPC to `ResearchRuntime`, dynamic selective-label experiments, guarded final evaluation, Claim Guard, and report export. Pi now builds and loads ECOMIC extensions both locally and in no-key GitHub CI. Competition readiness remains false because no configured provider has produced a live, redacted Scientist tool-use transcript and the real historical non-credit dataset still lacks a separately confirmed outcome time and a complete oracle label set.
 
 ## Acceptance matrix
 
@@ -17,7 +17,7 @@ The repository has one formal, SQLite-backed research path from typed Pi tools/R
 | Semantic auditor | PASS | Per-decision availability counts/rates, maximum difference, descriptive odds-ratio CI, and parsed time-order validation are returned. |
 | Chinese TUI workflows | PASS (static + RPC tested) | `/ecomic-new-research`, `/ecomic-run`, `/ecomic-final`, `/ecomic-history`, `/ecomic-report`, `/ecomic-settings`. |
 | API-key isolation | PASS | Keys use process memory or `~/.ecomic/credentials.env`; config excludes keys; redaction tests pass; `credentials.env` is ignored. |
-| Pi Agent Core / runtime loading | PASS locally; live provider evidence absent | Official Pi model data hydration and `build:offline` completed locally; the actual Pi CLI loaded all three ECOMIC extensions. No provider key, paid request, or live LLM transcript is claimed. |
+| Pi Agent Core / runtime loading | PASS locally and in no-key CI; live provider evidence absent | Official Pi model hydration, `build:offline`, Pi CLI startup, and all three ECOMIC extensions passed locally and in GitHub Actions run `31434225882`. No provider key, paid request, or live LLM transcript is claimed. |
 | Providers | CONFIGURATION UI IMPLEMENTED | OpenAI, Anthropic, DeepSeek, Gemini, OpenRouter, Moonshot, Qwen and MiniMax identifiers are mapped to Pi provider IDs. No paid provider was invoked in this audit. |
 | Custom OpenAI-compatible provider | NOT VERIFIED | UI validates Base URL but deliberately refuses formal Scientist startup until a Pi provider extension is registered and validated. |
 | Session / environment restore | PASS for deterministic recipe replay | SQLite snapshots plus run recipe recreate a deterministic next-round state; integration test covers restore call. |
@@ -27,7 +27,7 @@ The repository has one formal, SQLite-backed research path from typed Pi tools/R
 | Reproducible feature fallback | PASS | No Python built-in `hash()` is used for nonnumeric values; SHA-256 supplies stable conversion. |
 | Non-credit evidence | PASS for WDBC replay plus real historical audit; not a completed oracle benchmark | WDBC retains its explicit 5-seed × 3-budget × 3-policy simulation label. San Diego vehicle stops supply a real, non-credit historical-selection audit with source hash `2203feed…c30c`; no missing contraband outcome is imputed. |
 | Report artifacts | PASS | `agent_runs/<session>/final_report.md`, `manifest.json`, `exported_actions.jsonl`, `plots/`, `artifacts/`. |
-| CI definition | PASS (regular matrix); Pi manual gate strengthened | GitHub Actions `validation` run `31432429985` passed all six Python OS/version jobs and the Node schema/security job. The manual Pi gate now also loads all ECOMIC extensions after building Pi. |
+| CI | PASS including manual Pi integration | `validation` run `31434188402` passed the six Python OS/version jobs and Node checks; manual run `31434225882` also passed Pi hydration, build, CLI, and ECOMIC extension loading. |
 
 ## Verified local commands
 
@@ -44,7 +44,7 @@ At this checkpoint the Python suite completed 18 tests with one expected skip fo
 
 ## Pi live-agent boundary
 
-Pi's official public catalog hydration was initially blocked by a direct `models.dev` timeout. The user's temporary VPN proxy reached the catalog, so an in-process proxy dispatcher was used only for the official Pi model-data generator; hydration and the offline build then completed. This proves local runtime availability, not provider authentication or tool-use behavior. A live agent claim still requires a user-configured tool-capable provider and a redacted transcript in which Pi selects ECOMIC typed tools.
+Pi's official public catalog hydration was initially blocked by a direct `models.dev` timeout. The user's temporary VPN proxy reached the catalog, so an in-process proxy dispatcher was used only for the official Pi model-data generator; hydration and the offline build then completed. The same public hydration/build and extension-load path was then verified on GitHub Actions without a proxy or a provider key. This proves runtime availability, not provider authentication or tool-use behavior. A live agent claim still requires a user-configured tool-capable provider and a redacted transcript in which Pi selects ECOMIC typed tools.
 
 ## Real historical non-credit evidence
 
