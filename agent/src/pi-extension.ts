@@ -5,29 +5,21 @@ import { Type } from "@earendil-works/pi-ai";
 import { defineTool, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const toolNames = ["load_dataset", "inspect_schema", "infer_domain_spec", "audit_selective_labels", "confirm_field_mapping", "observe_state", "diagnose_selection", "define_budget", "list_applicable_policies", "plan_experiment", "run_experiment", "compare_visible_evidence", "revise_hypothesis", "lock_research_plan", "finalize_evaluation", "claim_guard", "generate_report"] as const;
-const parameters = Type.Object({ data_path: Type.Optional(Type.String()), run_dir: Type.Optional(Type.String()), description: Type.Optional(Type.String()), budget: Type.Optional(Type.Number()), claim: Type.Optional(Type.String()), overrides: Type.Optional(Type.Object({})) });
-
-function callBackend(action: string, params: Record<string, unknown>) {
-  const payload = { action, payload: { ...params, data_path: params.data_path ? path.resolve(String(params.data_path)) : undefined } };
-  const result = spawnSync(process.env.ECOMIC_PYTHON || "python", ["-m", "agent_backend.rpc"], { cwd: root, input: `${JSON.stringify(payload)}\n`, encoding: "utf8", windowsHide: true });
+function callRuntime(action: string, params: Record<string, unknown>) {
+  const result = spawnSync(process.env.ECOMIC_PYTHON || "python", ["-m", "agent_backend.rpc"], { cwd: root, input: `${JSON.stringify({ action, payload: params })}\n`, encoding: "utf8", windowsHide: true });
   if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(result.stderr || `backend failed: ${result.status}`);
   return JSON.parse(result.stdout.trim().split(/\r?\n/).pop() || "{}");
 }
-
-export default function (pi: ExtensionAPI) {
-  for (const name of toolNames) {
-    pi.registerTool(defineTool({
-      name: `ecomic_${name}`,
-      label: `ECOMIC: ${name}`,
-      description: `ECOMIC allow-listed research tool: ${name}. It cannot execute arbitrary shell commands or expose oracle labels during research.`,
-      parameters,
-      async execute(_id, params) {
-        const result = callBackend(name, params as Record<string, unknown>);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }], details: { action: name, result } };
-      },
-    }));
-  }
-  pi.registerCommand("ecomic", { description: "Show ECOMIC selective-label scientist help", handler: async (_args, ctx) => ctx.ui.notify("ECOMIC tools are registered separately and are audit logged.", "info") });
+const session = Type.Object({ session_id: Type.String(), state_dir: Type.Optional(Type.String()) });
+export default function(pi: ExtensionAPI) {
+  const register = (name: string, parameters: any) => pi.registerTool(defineTool({ name: `ecomic_${name}`, label: `ECOMIC: ${name}`, description: "ECOMIC typed research tool. Oracle labels and final metrics are never accepted from the agent.", parameters, async execute(_id, params) { const result = callRuntime(name, params as Record<string, unknown>); return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }], details: { action: name, result } }; } }));
+  register("load_dataset", Type.Object({ path: Type.String(), description: Type.Optional(Type.String()), state_dir: Type.Optional(Type.String()) }));
+  register("confirm_decision_mapping", Type.Object({ ...session.properties, decision_column: Type.String(), observed_values: Type.Array(Type.String()), non_observed_values: Type.Array(Type.String()), target_column: Type.Optional(Type.String()), cost_column: Type.Optional(Type.String()), decision_time: Type.Optional(Type.String()), outcome_time: Type.Optional(Type.String()), observation_reversible: Type.Boolean(), observation_simulatable: Type.Boolean() }));
+  register("create_hypothesis", Type.Object({ ...session.properties, content: Type.String() }));
+  register("plan_experiment", Type.Object({ ...session.properties, hypothesis_id: Type.String(), policy: Type.String(), budget: Type.Number(), rounds: Type.Integer({ minimum: 1 }) }));
+  register("run_experiment", Type.Object({ ...session.properties, plan_id: Type.String(), policy: Type.String(), budget: Type.Number(), seed: Type.Integer(), rounds: Type.Integer({ minimum: 1 }) }));
+  register("lock_research_plan", Type.Object({ ...session.properties, plan_id: Type.String() }));
+  // Deliberately only these two fields: no metrics field exists in this schema.
+  register("finalize_evaluation", Type.Object({ ...session.properties, run_id: Type.String() }));
+  register("observe_state", session);
 }
