@@ -1,0 +1,65 @@
+name: release-desktop
+
+on:
+  push:
+    tags:
+      - "v0.3.0"
+  workflow_dispatch:
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Python build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pyinstaller
+      - name: Build Pi runtime from the pinned upstream revision
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://github.com/earendil-works/pi vendor/pi
+          Push-Location vendor/pi
+          npm install --ignore-scripts
+          npm run hydrate:model-data
+          npm run build:offline
+          Pop-Location
+      - name: Build bundled Python backend
+        shell: pwsh
+        run: ./scripts/build-backend.ps1
+      - name: Bundle Node, Pi and Scientist Agent
+        shell: pwsh
+        run: ./scripts/build-agent-runtime.ps1
+      - name: Build NSIS installer
+        working-directory: desktop
+        run: |
+          npm ci
+          npm run tauri:build
+      - name: Collect release artifact and checksum
+        shell: pwsh
+        run: |
+          $version = "0.3.0"
+          New-Item -ItemType Directory -Force release | Out-Null
+          $installer = Get-ChildItem -Path desktop/src-tauri/target/release/bundle/nsis -Filter "*setup.exe" | Select-Object -First 1
+          if (-not $installer) { throw "NSIS installer was not produced." }
+          $destination = "release/ECOMIC-Setup-$version.exe"
+          Copy-Item $installer.FullName $destination -Force
+          $hash = (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -LiteralPath release/SHA256SUMS.txt -Value "$hash  ECOMIC-Setup-$version.exe" -NoNewline
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ECOMIC-Desktop-0.3.0-Windows
+          path: |
+            release/ECOMIC-Setup-0.3.0.exe
+            release/SHA256SUMS.txt
+          if-no-files-found: error
