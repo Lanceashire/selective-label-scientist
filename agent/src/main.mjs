@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { hydrateCredentialToProcess, loadNonSecretConfig } from "./settings.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const args = process.argv.slice(2);
@@ -14,6 +15,10 @@ function runHeadlessImport() {
 }
 if (args.includes("--headless")) runHeadlessImport();
 else {
+  // Pi resolves its initial model before extensions receive session_start. Restore the
+  // locally saved credential first so its own provider registry authenticates at boot.
+  const savedConfig = loadNonSecretConfig();
+  if (savedConfig.provider) hydrateCredentialToProcess(savedConfig.provider);
   const cli = path.join(root, "vendor", "pi", "packages", "coding-agent", "dist", "cli.js");
   const extension = (name) => path.join(root, "agent", "src", name);
   const child = spawn(process.execPath, [cli, "--extension", extension("pi-extension.ts"), "--extension", extension("ecomic-api-runtime.ts"), "--extension", extension("ecomic-research-loop-tools.ts"), "--extension", extension("ecomic-workbench.ts"), "--extension", extension("ecomic-history.ts"), ...args], { cwd: root, stdio: "inherit", windowsHide: true });
