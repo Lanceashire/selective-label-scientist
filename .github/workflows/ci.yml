@@ -34,6 +34,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - run: git clone --depth 1 https://github.com/earendil-works/pi vendor/pi
+      - run: npm install --ignore-scripts
+        working-directory: vendor/pi
+      - run: npm run hydrate:model-data && npm run build:offline
+        working-directory: vendor/pi
       - run: node --test tests_node/*.test.mjs
   pi-runtime-manual-integration:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_pi == 'true'
