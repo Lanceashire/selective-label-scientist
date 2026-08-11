@@ -1,0 +1,5 @@
+Frontend build: npm --prefix desktop run build — PASS.
+Rust debug build: cargo build --manifest-path desktop/src-tauri/Cargo.toml — PASS.
+Windows release build and installer bundle: npm --prefix desktop run tauri:build — PASS.
+Generated executable: desktop/src-tauri/target/release/ecomic-desktop.exe
+Generated NSIS installer: desktop/src-tauri/target/release/bundle/nsis/ECOMIC Desktop_0.3.0_x64-setup.exe

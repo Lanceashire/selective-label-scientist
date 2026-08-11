@@ -1,0 +1,2 @@
+Standalone health response: {"status":"OK","backend":"正常"} with PATH limited to Windows system directories.
+Standalone full smoke: CSV import, Session, confirmations, hypothesis, plan, Run: 2 rounds; python_on_path=false.

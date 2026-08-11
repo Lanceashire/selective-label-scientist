@@ -1,0 +1,35 @@
+{
+    "criteria":  [
+                     {
+                         "evidence":  "ECOMIC Desktop_0.3.0_x64-setup.exe (237.03 MB)",
+                         "name":  "NSIS Setup.exe exists",
+                         "passed":  true
+                     },
+                     {
+                         "evidence":  "Setup.exe exit 0 installed ECOMIC Desktop",
+                         "name":  "Silent installation succeeds",
+                         "passed":  true
+                     },
+                     {
+                         "evidence":  "application root/ecomic-agent contains backend, node and runner",
+                         "name":  "Installed app resources exist",
+                         "passed":  true
+                     },
+                     {
+                         "evidence":  "uninstall.exe /S exit 0; install root absent",
+                         "name":  "Uninstall succeeds and removes application",
+                         "passed":  true
+                     },
+                     {
+                         "evidence":  "installer only removed its own application root",
+                         "name":  "Source datasets not removed",
+                         "passed":  true
+                     }
+                 ],
+    "status":  "PASS",
+    "loop":  "desktop_loop_16",
+    "next_loop_allowed":  true,
+    "blocking_failures":  [
+
+                          ]
+}

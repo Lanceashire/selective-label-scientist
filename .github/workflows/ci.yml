@@ -58,3 +58,20 @@ jobs:
           --extension agent/src/ecomic-workbench.ts
           --extension agent/src/ecomic-history.ts
           --help
+  desktop-ui-and-rust:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+        working-directory: desktop
+      - run: npm run test
+        working-directory: desktop
+      - run: npm run build
+        working-directory: desktop
+      - run: cargo check --manifest-path desktop/src-tauri/Cargo.toml

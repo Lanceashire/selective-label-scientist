@@ -36,14 +36,15 @@ class ResearchRuntime:
   return {"session_id":s,"domain_spec":spec,"audit":audit}
  def create_hypothesis(self,s,content): self._open(s); return {"hypothesis_id":self.db.save_hypothesis(s,content)}
  def plan_experiment(self,s,hypothesis_id,policy,budget,rounds): self._open(s); return {"plan_id":self.db.save_plan(s,hypothesis_id,{"policy":policy,"budget":budget,"rounds":rounds})}
- def run_experiment(self,s,plan_id,policy,budget,seed,rounds):
+ def run_experiment(self,s,plan_id,policy,budget,seed,rounds,progress=None):
   self._open(s); spec=self._spec(s)
   if not(spec["historical_decision"].get("confirmed") and spec["observation_action"].get("confirmed")): raise RuntimeError("NEEDS_USER_INPUT: confirm decision mapping and observation action in TUI first")
   env=DynamicSelectiveLabelEnvironment(self._rows(s),spec,seed=seed); env.reset(total_budget=budget); rid=self.db.save_run(s,plan_id,policy,budget,seed,0); obs=[]
   for i in range(rounds):
    x=env.advance_round(batch_size=max(1,len(env.universe.candidate_ids)//max(1,rounds)),policy=policy,seed=seed+i); obs.append(x)
-   if x["status"]=="EXHAUSTED": break
-  p=self.state_dir/"agent_runs"/s; p.mkdir(parents=True,exist_ok=True); artifact=p/f"{rid}.json"; artifact.write_text(json.dumps({"policy":policy,"budget":budget,"seed":seed,"rounds":len(obs)}),encoding="utf8"); self.db.finish_run(rid,status="COMPLETED",round_end=len(obs),artifact_path=str(artifact)); self.db.append_event(s,"run_experiment",{"run_id":rid},"DynamicSelectiveLabelEnvironment","COMPLETED")
+   if progress: progress({"type":"experiment_progress","session_id":s,"run_id":rid,"round":i+1,"total_rounds":rounds,"status":x.get("status","COMPLETED")})
+   if x["status"]=="EXHAUSTED" and x.get("candidate_remaining", 0) == 0: break
+  visible_obs=[{"status":x.get("status"),"revealed_label_count":x.get("revealed_label_count",0),"predicted_cost":x.get("predicted_cost",0),"remaining_budget":x.get("remaining_budget"),"round_index":x.get("round_index"),"candidate_remaining":x.get("candidate_remaining")} for x in obs]; p=self.state_dir/"agent_runs"/s; p.mkdir(parents=True,exist_ok=True); artifact=p/f"{rid}.json"; artifact.write_text(json.dumps({"policy":policy,"budget":budget,"seed":seed,"rounds":len(obs),"observations":visible_obs},ensure_ascii=False),encoding="utf8"); self.db.finish_run(rid,status="COMPLETED",round_end=len(obs),artifact_path=str(artifact)); self.db.append_event(s,"run_experiment",{"run_id":rid},"DynamicSelectiveLabelEnvironment","COMPLETED")
   return {"run_id":rid,"observations":obs,"state":env.observe_state()}
  def lock_research_plan(self,s,plan_id): self.db.lock_plan(s,plan_id); return {"status":"LOCKED"}
  def finalize_evaluation(self,s,run_id):
@@ -54,5 +55,24 @@ class ResearchRuntime:
    try: env.advance_round(batch_size=max(1,len(env.universe.candidate_ids)//max(1,int(recipe["rounds"]))),policy=recipe["policy"],seed=int(recipe["seed"])+i)
    except Exception: break
   env._finished=False; result=env.finalize(); self.db.save_final_evaluation(s,run_id,result["metrics"]); self.db.append_event(s,"finalize_evaluation",{"run_id":run_id},"internal oracle evaluator","COMPLETED"); return result
+ def chart_data(self,s):
+  state=self._session(s); runs=[]; feedback_trajectory=[]
+  for row in state["runs"]:
+   observations=[]
+   try: observations=json.loads(Path(row["artifact_path"]).read_text(encoding="utf8")).get("observations",[]) if row.get("artifact_path") else []
+   except (OSError,json.JSONDecodeError): observations=[]
+   cumulative=0
+   for index,observation in enumerate(observations,1):
+    cumulative+=int(observation.get("revealed_label_count",observation.get("feedback_count",0)) or 0)
+    feedback_trajectory.append({"run_id":row["run_id"],"policy":row["policy"],"round":index,"feedback_count":cumulative,"budget":row["budget"]})
+   spent=sum(float(observation.get("predicted_cost",0) or 0) for observation in observations); budget=float(row["budget"] or 0); runs.append({"run_id":row["run_id"],"policy":row["policy"],"budget":budget,"rounds":row["round_end"] or 0,"feedback_count":cumulative,"budget_utilization":min(1.0,spent/budget) if budget else 0.0,"status":row["status"]})
+  hypotheses=[{"hypothesis_id":row["hypothesis_id"],"order":index,"content":row["content"]} for index,row in enumerate(state["hypotheses"],1)]
+  result={"session_id":s,"research_mode":not bool(state["final_evaluation_revealed"]),"runs":runs,"feedback_trajectory":feedback_trajectory,"hypothesis_timeline":hypotheses,"policy_comparison":[{"policy":row["policy"],"budget":row["budget"],"rounds":row["rounds"],"feedback_count":row["feedback_count"],"budget_utilization":row["budget_utilization"]} for row in runs],"final_metrics":None}
+  if state["final_evaluation_revealed"]:
+   row=self.db.connection.execute("SELECT metrics_json FROM final_evaluations WHERE session_id=?",(s,)).fetchone()
+   result["final_metrics"]=json.loads(row[0]) if row else {}
+  return result
+ def get_session(self,s):
+  return self._session(s)
  def observe_state(self,s):
   x=self._session(s); return {"session_id":s,"status":x["status"],"final_evaluation_revealed":bool(x["final_evaluation_revealed"]),"runs":len(x["runs"]),"hypotheses":len(x["hypotheses"]),"plans":len(x["plans"])}

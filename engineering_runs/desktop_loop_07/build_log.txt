@@ -1,0 +1,12 @@
+2026-08-11 Windows release build
+Command: npm --prefix desktop run tauri:build
+Result: PASS
+Artifacts:
+- desktop/src-tauri/target/release/ecomic-desktop.exe
+- desktop/src-tauri/target/release/bundle/nsis/ECOMIC Desktop_0.3.0_x64-setup.exe
+- desktop/src-tauri/target/release/bundle/msi/ECOMIC Desktop_0.3.0_x64_en-US.msi
+Build environment:
+- Git baseline: 77d34fdda43cb8dca4b3883e710d6eaca0f48e72
+- Python 3.13.13
+- Node v24.14.0
+- Cargo 1.97.1

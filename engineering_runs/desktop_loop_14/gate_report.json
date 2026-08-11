@@ -1,0 +1,35 @@
+{
+    "criteria":  [
+                     {
+                         "evidence":  "52302 files, 0.89 GB in target/release/ecomic-agent",
+                         "name":  "Bundled Node/Pi runtime exists",
+                         "passed":  true
+                     },
+                     {
+                         "evidence":  "verify-agent.mjs: typed_tool_calls=2, system_node_required=false",
+                         "name":  "Pi typed tool smoke uses bundled Node",
+                         "passed":  true
+                     },
+                     {
+                         "evidence":  "pi-connection-probe.mjs exit 0 and redacted malformed result without key",
+                         "name":  "Provider probe runs from bundle with safe error",
+                         "passed":  true
+                     },
+                     {
+                         "evidence":  "ECOMIC Desktop_0.3.0_x64-setup.exe, 237.03 MB",
+                         "name":  "NSIS installer built with explicit resource mapping",
+                         "passed":  true
+                     },
+                     {
+                         "evidence":  "npm --prefix desktop run test:e2e exit 0",
+                         "name":  "Desktop e2e completed",
+                         "passed":  true
+                     }
+                 ],
+    "status":  "PASS",
+    "loop":  "desktop_loop_14",
+    "next_loop_allowed":  true,
+    "blocking_failures":  [
+
+                          ]
+}

@@ -17,20 +17,8 @@ export const PROVIDERS = Object.freeze({
 
 export const ecomicHome = (home = os.homedir()) => path.join(home, ".ecomic");
 export const configPath = (home) => path.join(ecomicHome(home), "config.json");
-export const credentialsPath = (home) => path.join(ecomicHome(home), "credentials.env");
 
 function ensurePrivateDirectory(home) { fs.mkdirSync(ecomicHome(home), { recursive: true, mode: 0o700 }); }
-function readCredentials(home) {
-  try {
-    return Object.fromEntries(fs.readFileSync(credentialsPath(home), "utf8").split(/\r?\n/).flatMap((line) => {
-      const separator = line.indexOf("=");
-      if (separator <= 0) return [];
-      const name = line.slice(0, separator).trim();
-      const value = line.slice(separator + 1).trim();
-      return /^[A-Z][A-Z0-9_]*$/.test(name) && value ? [[name, value]] : [];
-    }));
-  } catch { return {}; }
-}
 
 export function redactSecret(value) {
   const text = String(value ?? "");
@@ -55,33 +43,30 @@ export function saveNonSecretConfig(config, home) {
   try { fs.chmodSync(configPath(home), 0o600); } catch { /* Windows ACLs differ. */ }
   return safe;
 }
-export function loadCredential(provider, home) { const definition = PROVIDERS[provider]; return definition ? readCredentials(home)[definition.keyEnv] : undefined; }
-export function hydrateCredentialToProcess(provider, home) {
+
+/**
+ * The terminal compatibility path deliberately keeps a key only in the
+ * current process. ECOMIC Desktop persists credentials exclusively through
+ * Windows Credential Manager in the Rust bridge; it never calls this helper.
+ */
+export function loadCredential(provider) { const definition = PROVIDERS[provider]; return definition ? process.env[definition.keyEnv] : undefined; }
+export function hydrateCredentialToProcess(provider) {
   const definition = PROVIDERS[provider];
-  const key = loadCredential(provider, home);
-  if (definition && key && !process.env[definition.keyEnv]) process.env[definition.keyEnv] = key;
-  return key;
+  return definition ? process.env[definition.keyEnv] : undefined;
 }
-export function saveCredential(provider, apiKey, home) {
+export function saveCredential(provider, apiKey) {
   const definition = PROVIDERS[provider];
   if (!definition) throw new Error("Unsupported provider");
   if (!apiKey || /\r|\n/.test(apiKey)) throw new Error("API Key must be non-empty and single-line");
-  ensurePrivateDirectory(home);
-  const credentials = readCredentials(home);
-  credentials[definition.keyEnv] = apiKey;
-  fs.writeFileSync(credentialsPath(home), `${Object.entries(credentials).sort(([a], [b]) => a.localeCompare(b)).map(([name, value]) => `${name}=${value}`).join("\n")}\n`, { encoding: "utf8", mode: 0o600 });
-  try { fs.chmodSync(credentialsPath(home), 0o600); } catch { /* Windows ACLs differ. */ }
-  return { provider, masked_key: redactSecret(apiKey), stored: "local-private-file" };
+  process.env[definition.keyEnv] = apiKey;
+  return { provider, masked_key: redactSecret(apiKey), stored: "process-memory" };
 }
-export function clearCredential(provider, home) {
+export function clearCredential(provider) {
   const definition = PROVIDERS[provider];
   if (!definition) return false;
-  const credentials = readCredentials(home);
-  if (!credentials[definition.keyEnv]) return false;
-  delete credentials[definition.keyEnv];
-  if (Object.keys(credentials).length) fs.writeFileSync(credentialsPath(home), `${Object.entries(credentials).sort(([a], [b]) => a.localeCompare(b)).map(([name, value]) => `${name}=${value}`).join("\n")}\n`, { encoding: "utf8", mode: 0o600 });
-  else fs.rmSync(credentialsPath(home), { force: true });
-  return true;
+  const existed = Boolean(process.env[definition.keyEnv]);
+  delete process.env[definition.keyEnv];
+  return existed;
 }
 export function checkConfiguration(config, apiKey) {
   const provider = PROVIDERS[config.provider];

@@ -1,0 +1,4 @@
+Vite production build: PASS.
+Rust cargo check: PASS.
+Tauri Release build: PASS.
+Native Tauri WebView E2E: PASS.

@@ -7,10 +7,11 @@ describe("ECOMIC Desktop AppShell", () => {
     render(<App />);
     ["首页", "新建研究", "数据集", "科研工作台", "实验记录", "历史研究", "模型与 API", "系统设置"].forEach((label) => expect(screen.getByTitle(label)).toBeTruthy());
   });
-  it("switches page content without a full document reload", () => {
+  it("switches to the real dataset import workflow without a full document reload", () => {
     render(<App />);
     fireEvent.click(screen.getByTitle("数据集"));
-    expect(screen.getByRole("heading", { name: "查看导入数据的概要与语义候选" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "导入研究数据集" })).toBeTruthy();
+    expect(screen.getByLabelText("数据集路径")).toBeTruthy();
     expect(document.querySelector(".app")).toBeTruthy();
   });
   it("switches between dark and light themes", () => {

@@ -1,0 +1,6 @@
+1. PATH=Windows-only: ecomic-agent/node.exe verify-agent.mjs
+   PASS {""status"":""OK"",""runtime"":""bundled-node"",""typed_tool_calls"":2,""system_node_required"":false}
+2. PATH=Windows-only: ecomic-agent/node.exe agent/src/pi-connection-probe.mjs
+   PASS exit 0; error result is redacted when no provider key exists.
+3. npm --prefix desktop run test:e2e
+   PASS exit 0. Known WDIO post-session cleanup warning recorded separately.

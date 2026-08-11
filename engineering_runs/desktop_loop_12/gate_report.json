@@ -1,0 +1,12 @@
+{
+  "loop": "desktop_loop_12",
+  "status": "PASS",
+  "criteria": [
+    {"name":"GUI renders final_report.md", "passed":true, "evidence":"desktop/src/ReportViewer.tsx and ReportViewer.test.tsx"},
+    {"name":"report has all required scientific sections", "passed":true, "evidence":"tests_agent/test_session_report_and_confirmation.py"},
+    {"name":"export matches viewed report and is destination-bound", "passed":true, "evidence":"tests_agent/test_session_report_and_confirmation.py"},
+    {"name":"report omits credentials and private reasoning by design", "passed":true, "evidence":"agent_backend/runtime/report_service.py manifest security fields"}
+  ],
+  "blocking_failures": [],
+  "next_loop_allowed": true
+}

@@ -3,21 +3,20 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { PROVIDERS, checkConfiguration, configPath, credentialsPath, hydrateCredentialToProcess, loadCredential, loadNonSecretConfig, redactSecret, redactText, saveCredential, saveNonSecretConfig } from "../agent/src/settings.mjs";
+import { PROVIDERS, checkConfiguration, configPath, hydrateCredentialToProcess, loadCredential, loadNonSecretConfig, redactSecret, redactText, saveCredential, saveNonSecretConfig } from "../agent/src/settings.mjs";
 
-test("credentials stay outside repository, survive provider switching, and all secret forms are redacted", () => {
+test("terminal credentials remain process-only and all secret forms are redacted", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "ecomic-settings-"));
   saveNonSecretConfig({ provider: "deepseek", model: "deepseek-chat", base_url: null, tool_calling_verified: true }, home);
-  saveCredential("deepseek", "sk-abcdefghijklmnopqrstuvwxyz23af", home);
-  saveCredential("openai", "sk-openai-test-123456", home);
+  saveCredential("deepseek", "test-deepseek-key-23af");
+  saveCredential("openai", "test-openai-key-3456");
   assert.equal(JSON.parse(fs.readFileSync(configPath(home), "utf8")).provider, "deepseek");
-  assert.match(fs.readFileSync(credentialsPath(home), "utf8"), /DEEPSEEK_API_KEY=/);
-  assert.match(fs.readFileSync(credentialsPath(home), "utf8"), /OPENAI_API_KEY=/);
-  assert.equal(loadCredential("deepseek", home), "sk-abcdefghijklmnopqrstuvwxyz23af");
-  assert.equal(hydrateCredentialToProcess("openai", home), "sk-openai-test-123456");
-  assert.equal(process.env.OPENAI_API_KEY, "sk-openai-test-123456");
+  assert.equal(fs.existsSync(path.join(home, ".ecomic", "credentials.env")), false);
+  assert.equal(loadCredential("deepseek"), "test-deepseek-key-23af");
+  assert.equal(hydrateCredentialToProcess("openai"), "test-openai-key-3456");
+  assert.equal(process.env.OPENAI_API_KEY, "test-openai-key-3456");
   assert.equal(loadNonSecretConfig(home).tool_calling_verified, true);
-  assert.equal(redactSecret("sk-abcdefghijklmnopqrstuvwxyz23af"), "sk-****23af");
+  assert.equal(redactSecret("test-deepseek-key-23af"), "tes****23af");
   assert.equal(redactText("Authorization: Bearer super-secret"), "Authorization: Bearer [REDACTED]");
   assert.equal(redactText("token=super-secret"), "token=[REDACTED]");
   assert.equal(checkConfiguration({ provider: "deepseek", model: "deepseek-chat" }, "key").ok, true);
@@ -25,6 +24,7 @@ test("credentials stay outside repository, survive provider switching, and all s
   assert.equal(PROVIDERS.google.keyEnv, "GEMINI_API_KEY");
   assert.equal(PROVIDERS.minimax.keyEnv, "MINIMAX_API_KEY");
   assert.equal(PROVIDERS.qwen.piProvider, "qwen-token-plan-cn");
+  delete process.env.DEEPSEEK_API_KEY;
   delete process.env.OPENAI_API_KEY;
   fs.rmSync(home, { recursive: true, force: true });
 });

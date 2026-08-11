@@ -1,0 +1,5 @@
+scripts/ecomic_backend_entry.py
+scripts/build-backend.ps1
+scripts/verify-backend-exe.ps1
+release/runtime/ecomic-backend.exe
+build/pyinstaller/ecomic-backend.spec

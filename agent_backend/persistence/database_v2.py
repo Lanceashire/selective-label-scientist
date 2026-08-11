@@ -36,3 +36,12 @@ class DatabaseManager(BaseDatabaseManager):
         if not claim or not run or claim[0] != run[0]: raise ValueError("claim evidence must reference a real run in the same session")
         with self.transaction():
             self.connection.execute("INSERT OR REPLACE INTO claim_evidence VALUES(?,?,?,?,?,?,?)", (claim_id, run_id, metric_name, metric_value, effect_size, ci_low, ci_high))
+    def set_research_question(self, session_id: str, question: str) -> None:
+        text = question.strip()
+        if not text:
+            raise ValueError("research question must not be empty")
+        with self.transaction():
+            self.connection.execute(
+                "UPDATE sessions SET research_question=?, updated_at=? WHERE session_id=?",
+                (text, datetime.now(timezone.utc).isoformat(), session_id),
+            )

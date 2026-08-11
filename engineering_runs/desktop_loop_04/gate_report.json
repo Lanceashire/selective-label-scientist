@@ -1,0 +1,15 @@
+{
+  "loop": "desktop_loop_04",
+  "status": "PASS",
+  "criteria": [
+    {"name": "Configuration check is token-free", "passed": true, "evidence": "provider_validate checks only profile metadata and Windows Credential Manager state."},
+    {"name": "Explicit consent before real request", "passed": true, "evidence": "ProviderSettingsPage requires window.confirm before provider_test_connection; frontend regression test passes."},
+    {"name": "Pi minimum Tool Calling probe", "passed": true, "evidence": "tests_node/pi_connection_probe.test.mjs starts a local OpenAI-Compatible mock; Pi Models invokes ecomic_connection_probe and verifies toolUse."},
+    {"name": "Safe user-facing failure taxonomy", "passed": true, "evidence": "connection_test_contract.test.mjs covers 401, 404, 429, timeout, network, malformed response, and 200 tool-call success."},
+    {"name": "No plaintext credential persistence path", "passed": true, "evidence": "settings.mjs is process-only; Rust uses keyring::Entry; legacy credentials.env implementation was removed."},
+    {"name": "Native desktop binary and installer build", "passed": true, "evidence": "Tauri build produced NSIS and MSI bundles; native WDIO E2E reports 2 spec files and 3 tests passed."}
+  ],
+  "manual_gate": {"status": "NOT_RUN", "reason": "No user-owned paid Provider key was used; the automated local Pi mock verifies the integration path without making a paid request."},
+  "blocking_failures": [],
+  "next_loop_allowed": true
+}

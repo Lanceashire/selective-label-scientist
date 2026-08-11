@@ -1,0 +1,5 @@
+Python unittest discover: 25 passed, 1 expected skip.
+Node Pi runner suite: 12 passed.
+Desktop frontend suite: 9 files, 18 tests passed.
+Rust cargo check: passed.
+Native Tauri E2E: 2 specs passed, 3 assertions passed.

@@ -1,0 +1,2 @@
+PASS: desktop/src-tauri/target/release/ecomic-desktop.exe
+PASS: NSIS and MSI bundles built.

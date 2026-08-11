@@ -1,0 +1,12 @@
+{
+  "loop": "desktop_loop_11",
+  "status": "PASS",
+  "criteria": [
+    {"name":"history shows persisted session metadata", "passed":true, "evidence":"HistoryResearchPage.tsx and tests_agent/test_desktop_history_recovery.py"},
+    {"name":"recovery keeps the same session and deterministic state", "passed":true, "evidence":"tests_agent/test_desktop_history_recovery.py"},
+    {"name":"delete requires confirmation and does not delete source data", "passed":true, "evidence":"HistoryResearchPage.test.tsx and tests_agent/test_desktop_history_recovery.py"},
+    {"name":"desktop release remains runnable", "passed":true, "evidence":"Tauri Release build and 2 native E2E specs / 3 assertions"}
+  ],
+  "blocking_failures": [],
+  "next_loop_allowed": true
+}

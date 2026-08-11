@@ -1,0 +1,4 @@
+1. Setup.exe /S PASS (exit 0)
+2. installed app runtime resource check PASS
+3. installed app launch PASS
+4. uninstall.exe /S PASS (exit 0; application directory absent)

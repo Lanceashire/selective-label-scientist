@@ -1,0 +1,1 @@
+No blocking failure. Live paid provider call intentionally requires user-triggered GUI action.

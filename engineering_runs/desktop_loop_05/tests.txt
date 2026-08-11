@@ -1,0 +1,9 @@
+2026-08-11
+
+python -m unittest tests_agent.test_desktop_dataset_import_gate tests_agent.test_desktop_dataset_domainspec -v
+- 2 tests run, 2 passed
+- covers CSV, Parquet, empty CSV, malformed CSV, wrong encoding, duplicate hash, 1M-row bounded preview, DomainSpec version preconditions
+
+npm --prefix desktop run test
+- 4 test files passed, 8 tests passed
+- covers picker cancel, native drag/drop, provider security UI, bridge UI, app navigation

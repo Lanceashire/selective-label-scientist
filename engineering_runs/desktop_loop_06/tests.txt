@@ -1,0 +1,15 @@
+2026-08-11
+
+python -m unittest discover -s tests_agent -v
+- 22 passed, 1 expected LexiRiskLabel vendor skip
+- DomainSpec test asserts v1/v2/v3, preconfirmation run rejection, and successful postconfirmation run
+
+npm run test:node
+- 10 passed
+
+npm --prefix desktop run test
+- 5 test files passed, 9 tests passed
+- includes full non-JSON DomainSpec wizard flow and ordered bridge calls
+
+npm --prefix desktop run test:e2e
+- 2 native specs passed, 3 assertions passed

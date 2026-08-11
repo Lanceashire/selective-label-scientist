@@ -1,0 +1,13 @@
+Python: python -m unittest discover -s tests_agent -v
+Result: 20 tests passed; 1 expected skip.
+
+Sidecar endurance: python -m unittest tests_agent.test_desktop_sidecar -v
+Result: 20 consecutive health_check requests passed with one sidecar PID.
+
+Frontend: npm --prefix desktop run test
+Result: 4 tests passed.
+
+Native release E2E: npm --prefix desktop run test:e2e
+Result: 1 passing.
+Observed native application URL: http://tauri.localhost/
+Observed native application title: ECOMIC Desktop

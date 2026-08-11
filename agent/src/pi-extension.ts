@@ -1,11 +1,11 @@
-/** Typed ECOMIC tools and secure model/API settings for Pi. */
+/** Typed ECOMIC tools and process-only terminal API settings for Pi. */
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Key, matchesKey } from "@earendil-works/pi-tui";
-import { PROVIDERS, checkConfiguration, loadNonSecretConfig, redactSecret, saveCredential, saveNonSecretConfig } from "./settings.mjs";
+import { PROVIDERS, checkConfiguration, loadNonSecretConfig, saveCredential, saveNonSecretConfig } from "./settings.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 function callRuntime(action: string, payload: Record<string, unknown>) {
@@ -35,7 +35,8 @@ async function secretInput(ctx: any, title: string) {
 export default function (pi: ExtensionAPI) {
   const session = Type.Object({ session_id: Type.String(), state_dir: Type.Optional(Type.String()) });
   const register = (name: string, parameters: any) => pi.registerTool(defineTool({
-    name: `ecomic_${name}`, label: `ECOMIC: ${name}`,
+    name: `ecomic_${name}`,
+    label: `ECOMIC: ${name}`,
     description: `Audited ECOMIC scientific tool: ${name}. Oracle labels and final metrics are never agent supplied.`,
     parameters,
     async execute(_id, parameters) {
@@ -57,7 +58,7 @@ export default function (pi: ExtensionAPI) {
   register("claim_guard", Type.Object({ ...session.properties, claim: Type.String(), evidence_run_ids: Type.Array(Type.String()), strength: Type.Optional(Type.String()) }));
 
   pi.registerCommand("ecomic-settings", {
-    description: "模型与 API 设置（密钥默认仅保存在本次 Pi 会话内）",
+    description: "模型与 API 设置（密钥仅保存在当前 Pi 进程内）",
     handler: async (_args, ctx) => {
       const choices = Object.entries(PROVIDERS).map(([id, provider]) => `${id} · ${provider.label}`);
       const chosen = await ctx.ui.select("选择模型服务商", choices);
@@ -71,13 +72,12 @@ export default function (pi: ExtensionAPI) {
       if (key === null) return;
       const validation = checkConfiguration({ provider, model, base_url: baseUrl || null }, key);
       if (!validation.ok) { ctx.ui.notify(`配置未通过：${validation.message}`, "error"); return; }
-      const saveLocally = await ctx.ui.confirm("保存凭据", `当前 Key：${redactSecret(key)}\n是否保存至 ~/.ecomic/credentials.env？选择“否”仅在本次会话内使用。`);
       saveNonSecretConfig({ provider, model, base_url: baseUrl || null });
-      if (saveLocally) { saveCredential(provider, key); ctx.ui.notify("已保存至本机私有凭据文件；未写入项目、SQLite、报告或日志。", "info"); }
-      else { process.env[PROVIDERS[provider].keyEnv] = key; ctx.ui.notify("已仅在当前 Pi 进程内配置 API Key。", "info"); }
+      saveCredential(provider, key);
+      ctx.ui.notify("API Key 仅保存在当前 Pi 进程；退出后自动清除。桌面版请使用 Windows 凭据保管库。", "info");
       const modelInfo = ctx.modelRegistry.find(PROVIDERS[provider].piProvider, model);
-      if (!modelInfo) ctx.ui.notify("Pi 当前模型目录中未找到该模型；可保存配置，但开始正式 Agent 前应重启 Pi 并检查模型 ID。", "warning");
-      else ctx.ui.notify("配置检查通过。真实连接测试会发送最小请求，且可能消耗少量 Token；请在模型已选中后使用 Pi 的连接流程。", "info");
+      if (!modelInfo) ctx.ui.notify("Pi 当前模型目录中未找到该模型；请检查模型 ID。", "warning");
+      else ctx.ui.notify("配置检查通过。真实连接测试会发送最小请求，可能消耗少量 Token。", "info");
     },
   });
 }

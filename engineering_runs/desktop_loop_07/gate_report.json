@@ -1,0 +1,14 @@
+{
+  "loop": "desktop_loop_07",
+  "status": "PASS",
+  "criteria": [
+    {"name":"Pi Agent Core production launcher","passed":true,"evidence":"agent/src/desktop-scientist-runner-v2.mjs imports the vendored Pi Agent Core and streamSimple; Node test passed."},
+    {"name":"Typed, boundary-checked research tools","passed":true,"evidence":"Runner exposes observe, hypothesis, revision, plan, run, visible comparison, lock, finalization, claim and report tools; beforeToolCall blocks Oracle, shell and injected metrics."},
+    {"name":"Adaptive Mock Provider workflow","passed":true,"evidence":"tests_node/pi_agent_core_mock_adaptive.test.mjs proves Pi Agent Core selects revise_hypothesis after researcher-visible feedback; tests_agent/test_desktop_scientist_mock_gate.py persists two hypotheses, plans and runs plus report."},
+    {"name":"Desktop research control","passed":true,"evidence":"ScientistControl calls DesktopBridge.startScientist from the GUI; frontend test passed."},
+    {"name":"Custom OpenAI-Compatible Agent runtime","passed":true,"evidence":"Runner creates a Pi custom provider via createProvider and openAICompletionsApi; Rust bridge forwards custom credential only through inherited environment."},
+    {"name":"Windows native regression","passed":true,"evidence":"Tauri release build and 3 native WebDriver E2E assertions passed."}
+  ],
+  "blocking_failures": [],
+  "next_loop_allowed": true
+}

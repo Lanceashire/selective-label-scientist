@@ -1,0 +1,1 @@
+ALTER TABLE sessions ADD COLUMN research_question TEXT;

@@ -1,0 +1,1 @@
+External follow-up only: push changes to GitHub to execute the new desktop CI job; run the GUI provider connection test with a user-controlled key if a live paid transcript is required.

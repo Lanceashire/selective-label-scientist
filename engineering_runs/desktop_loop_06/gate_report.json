@@ -1,0 +1,14 @@
+{
+  "loop": "desktop_loop_06",
+  "status": "PASS",
+  "criteria": [
+    {"name": "Nine-step non-JSON DomainSpec wizard", "passed": true, "evidence": "DomainSpecWizard.test.tsx walks decision, observed, hidden, outcome, cost, time, action, review, and confirmation steps."},
+    {"name": "Research is blocked before both confirmations", "passed": true, "evidence": "tests_agent.test_desktop_dataset_domainspec proves run_experiment returns NEEDS_USER_INPUT before decision mapping and again before observation action."},
+    {"name": "DomainSpec audit versions are complete", "passed": true, "evidence": "SQLite assertion verifies domain_specs versions [(1,0), (2,0), (3,1)] for inference, decision confirmation, and observation confirmation."},
+    {"name": "Confirmed mapping can run research", "passed": true, "evidence": "The backend test successfully executes a Random run only after both confirmations."},
+    {"name": "Native desktop application builds and runs", "passed": true, "evidence": "tauri build created NSIS/MSI packages; WebdriverIO executed 2 native specs / 3 assertions successfully."},
+    {"name": "Full regression suite remains green", "passed": true, "evidence": "22 backend tests passed (1 expected vendor skip), 10 Node tests passed, and 9 frontend tests passed."}
+  ],
+  "blocking_failures": [],
+  "next_loop_allowed": true
+}

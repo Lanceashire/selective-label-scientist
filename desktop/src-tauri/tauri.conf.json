@@ -1,9 +1,47 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ECOMIC Desktop",
-  "version": "0.3.0",
-  "identifier": "org.ecomic.desktop",
-  "build": { "beforeDevCommand": "npm run dev", "beforeBuildCommand": "npm run build", "devUrl": "http://127.0.0.1:1420", "frontendDist": "../dist" },
-  "app": { "windows": [{ "title": "ECOMIC Desktop", "width": 1280, "height": 820, "minWidth": 1100, "minHeight": 700, "resizable": true, "center": true }], "security": { "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:1420; img-src 'self' asset:; style-src 'self' 'unsafe-inline';" } },
-  "bundle": { "active": true, "targets": ["nsis", "msi"], "windows": { "nsis": { "installMode": "currentUser" } } }
+    "$schema":  "https://schema.tauri.app/config/2",
+    "productName":  "ECOMIC Desktop",
+    "version":  "0.3.0",
+    "identifier":  "org.ecomic.desktop",
+    "build":  {
+                  "beforeDevCommand":  "npm run dev",
+                  "beforeBuildCommand":  "npm run build",
+                  "devUrl":  "http://127.0.0.1:1420",
+                  "frontendDist":  "../dist"
+              },
+    "app":  {
+                "withGlobalTauri":  true,
+                "windows":  [
+                                {
+                                    "title":  "ECOMIC Desktop",
+                                    "width":  1280,
+                                    "height":  820,
+                                    "minWidth":  1100,
+                                    "minHeight":  700,
+                                    "resizable":  true,
+                                    "center":  true
+                                }
+                            ],
+                "security":  {
+                                 "csp":  "default-src \u0027self\u0027; connect-src \u0027self\u0027 ipc: http://ipc.localhost http://127.0.0.1:1420; img-src \u0027self\u0027 asset:; style-src \u0027self\u0027 \u0027unsafe-inline\u0027;"
+                             }
+            },
+    "bundle":  {
+                   "active":  true,
+                   "targets":  [
+                                   "nsis"
+                               ],
+                   "icon":  [
+                                "icons/icon.ico"
+                            ],
+                   "resources":  {
+                                     "../../release/runtime/ecomic-agent":  "ecomic-agent"
+                                 },
+                   "windows":  {
+                                   "nsis":  {
+                                                "installMode":  "currentUser",
+                                                "compression":  "zlib"
+                                            }
+                               }
+               }
 }

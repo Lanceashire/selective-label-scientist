@@ -1,0 +1,1 @@
+Installer: D:\selective-label-scientist_publish\desktop\src-tauri\target\release\bundle\nsis\ECOMIC Desktop_0.3.0_x64-setup.exe

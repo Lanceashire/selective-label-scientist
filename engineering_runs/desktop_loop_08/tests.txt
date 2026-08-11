@@ -1,0 +1,5 @@
+PASS: Python 24 passed, 1 expected skip.
+PASS: Node 12 passed.
+PASS: Frontend 13 passed.
+PASS: Rust check, Vite build, Tauri Release build.
+PASS: Native E2E 2 specs / 3 assertions.

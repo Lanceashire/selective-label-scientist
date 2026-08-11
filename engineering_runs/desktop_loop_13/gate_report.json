@@ -1,0 +1,11 @@
+{
+  "loop": "desktop_loop_13",
+  "status": "PASS",
+  "criteria": [
+    {"name":"PyInstaller backend EXE exists", "passed":true, "evidence":"release/runtime/ecomic-backend.exe (133914858 bytes)"},
+    {"name":"health check works without Python PATH", "passed":true, "evidence":"scripts/verify-backend-exe.ps1"},
+    {"name":"dataset, session and smoke experiment work without Python PATH", "passed":true, "evidence":"scripts/verify-backend-exe.ps1 returned 2 rounds with python_on_path=false"}
+  ],
+  "blocking_failures": [],
+  "next_loop_allowed": true
+}

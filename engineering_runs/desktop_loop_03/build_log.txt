@@ -1,0 +1,7 @@
+Rust check: cargo check --manifest-path desktop/src-tauri/Cargo.toml — PASS.
+Frontend TypeScript/Vite build: npm --prefix desktop run build — PASS.
+Windows release build: npm --prefix desktop run tauri:build — PASS.
+Generated:
+- desktop/src-tauri/target/release/ecomic-desktop.exe
+- desktop/src-tauri/target/release/bundle/nsis/ECOMIC Desktop_0.3.0_x64-setup.exe
+- desktop/src-tauri/target/release/bundle/msi/ECOMIC Desktop_0.3.0_x64_en-US.msi

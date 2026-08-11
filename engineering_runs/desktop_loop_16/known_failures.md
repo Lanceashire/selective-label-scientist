@@ -1,0 +1,1 @@
+The installer uses the per-user default location in silent mode; this does not affect the normal GUI installer. Initial test script assumed a resources/ subdirectory, corrected after inspecting Tauri's Windows application-root resource layout.

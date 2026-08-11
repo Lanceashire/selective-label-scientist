@@ -1,0 +1,3 @@
+Vite production build: PASS.
+Tauri Release build: PASS.
+Native desktop E2E was executed against the Tauri application after the Release build.

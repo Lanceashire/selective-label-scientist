@@ -1,0 +1,4 @@
+Runtime rebuilt with scripts/build-agent-runtime.ps1 after adding the provider probe and local contract.
+Tauri production build: npm --prefix desktop run tauri:build
+PASS: generated D:\selective-label-scientist_publish\desktop\src-tauri\target\release\bundle\nsis\ECOMIC Desktop_0.3.0_x64-setup.exe (237.03 MB).
+Bundle config: targets=[nsis], compression=zlib, explicit ../../release/runtime/ecomic-agent -> ecomic-agent resource map.
