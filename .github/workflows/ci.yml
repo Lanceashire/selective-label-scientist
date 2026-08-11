@@ -79,4 +79,6 @@ jobs:
         working-directory: desktop
       - run: npm run build
         working-directory: desktop
+      - shell: pwsh
+        run: New-Item -ItemType Directory -Force release/runtime/ecomic-agent | Out-Null
       - run: cargo check --manifest-path desktop/src-tauri/Cargo.toml
