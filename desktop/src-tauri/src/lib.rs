@@ -1,15 +1,10 @@
-use serde::Serialize;
-
-#[derive(Serialize)]
-struct DesktopHealth { application: &'static str, shell: &'static str, status: &'static str }
-
+use serde_json::{json, Value};
+use std::{env, io::{BufRead, BufReader, Write}, path::PathBuf, process::{Child, ChildStdin, ChildStdout, Command, Stdio}, sync::Mutex};
+struct Sidecar { child: Child, stdin: ChildStdin, stdout: BufReader<ChildStdout> }
+struct DesktopBridge(Mutex<Option<Sidecar>>);
+fn project_root() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().and_then(|p| p.parent()).expect("desktop must be nested in project root").to_path_buf() }
+fn spawn_sidecar() -> Result<Sidecar, String> { let python = env::var("ECOMIC_PYTHON").unwrap_or_else(|_| "python".to_string()); let mut child = Command::new(python).args(["-m", "agent_backend.desktop_sidecar"]).current_dir(project_root()).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().map_err(|e| format!("无法启动科研后端：{e}"))?; Ok(Sidecar { stdin: child.stdin.take().ok_or("科研后端 stdin 不可用")?, stdout: BufReader::new(child.stdout.take().ok_or("科研后端 stdout 不可用")?), child }) }
+fn call_sidecar(bridge: &DesktopBridge, request: Value) -> Result<Value, String> { let mut holder = bridge.0.lock().map_err(|_| "科研后端锁不可用")?; let restart = match holder.as_mut() { None => true, Some(sidecar) => sidecar.child.try_wait().map_err(|e| format!("无法检查科研后端：{e}"))?.is_some() }; if restart { *holder = Some(spawn_sidecar()?); } let sidecar = holder.as_mut().expect("sidecar initialized"); let text = serde_json::to_string(&request).map_err(|e| e.to_string())?; sidecar.stdin.write_all(text.as_bytes()).and_then(|_| sidecar.stdin.write_all(b"\n")).and_then(|_| sidecar.stdin.flush()).map_err(|e| format!("科研后端通信失败：{e}"))?; let mut response = String::new(); sidecar.stdout.read_line(&mut response).map_err(|e| format!("科研后端未响应：{e}"))?; serde_json::from_str(&response).map_err(|_| "科研后端返回了无效响应。".to_string()) }
 #[tauri::command]
-fn desktop_health() -> DesktopHealth { DesktopHealth { application: "ECOMIC Desktop", shell: "Tauri 2 + React", status: "ready" } }
-
-pub fn run() {
-  tauri::Builder::default()
-    .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![desktop_health])
-    .run(tauri::generate_context!())
-    .expect("failed to run ECOMIC Desktop");
-}
+fn desktop_bridge(bridge: tauri::State<'_, DesktopBridge>, action: String, payload: Value) -> Result<Value, String> { call_sidecar(&bridge, json!({"action": action, "payload": payload})) }
+pub fn run() { tauri::Builder::default().manage(DesktopBridge(Mutex::new(None))).plugin(tauri_plugin_dialog::init()).invoke_handler(tauri::generate_handler![desktop_bridge]).run(tauri::generate_context!()).expect("failed to run ECOMIC Desktop"); }
