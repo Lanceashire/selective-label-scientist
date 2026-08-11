@@ -13,3 +13,5 @@ dist/
 vendor/pi/
 vendor/LexiRiskLabel/
 *.egg-info/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
