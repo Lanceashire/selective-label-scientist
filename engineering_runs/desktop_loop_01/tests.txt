@@ -1,0 +1,4 @@
+npm run test: 3/3 Vitest tests passed (AppShell navigation, client-side page transition, theme).
+npm run build: TypeScript check and Vite production build passed.
+cargo check --manifest-path src-tauri/Cargo.toml: passed after icon/config validation.
+Real Tauri dev launch: Windows ecomic-desktop process observed as PID 47280; test process then stopped.

@@ -1,0 +1,9 @@
+Tauri 2 / React desktop shell build environment:
+- Node v24.14.0
+- Rust 1.97.1
+- Visual Studio 18 Community MSVC toolchain
+- Tauri Rust crate resolved to 2.11.5
+- React 18.3.1
+
+Initial config issue fixed: NSIS uses installMode, not installerMode.
+Initial resource issue fixed: generated src-tauri/icons/icon.ico from ECOMIC SVG.
