@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 
-test("Pi extension has typed evaluator and separate semantic confirmations without metrics", () => {
+test("Pi extension has typed evaluator and process-only terminal secret handling", () => {
   const source = fs.readFileSync("agent/src/pi-extension.ts", "utf8");
   const start = source.indexOf('register("finalize_evaluation"');
   const end = source.indexOf('register("observe_state"', start);
@@ -14,5 +14,6 @@ test("Pi extension has typed evaluator and separate semantic confirmations witho
   assert.match(source, /register\("confirm_observation_action"/);
   assert.match(source, /register\("lock_run_plan"/);
   assert.match(source, /secretInput/);
-  assert.match(source, /credentials\.env/);
+  assert.match(source, /仅保存在当前 Pi 进程/);
+  assert.doesNotMatch(source, /credentials\.env/);
 });

@@ -30,6 +30,7 @@ class SessionReportAndConfirmationTests(unittest.TestCase):
             self.assertTrue(action["domain_spec"]["observation_action"]["confirmed"])
             listing = dispatch("list_sessions", {"state_dir": state})["sessions"]
             self.assertEqual(listing[0]["session_id"], session)
+            dispatch("set_research_question", {"session_id": session, "state_dir": state, "question": "比较低预算下的策略反馈效率"})
             hypothesis = dispatch("create_hypothesis", {"session_id": session, "state_dir": state, "content": "test uncertainty policy"})
             plan = dispatch("plan_experiment", {"session_id": session, "state_dir": state, "hypothesis_id": hypothesis["hypothesis_id"], "policy": "LRBE-Uncertainty", "budget": 8, "rounds": 2})
             run = dispatch("run_experiment", {"session_id": session, "state_dir": state, "plan_id": plan["plan_id"], "policy": "LRBE-Uncertainty", "budget": 8, "rounds": 2, "seed": 11})
@@ -43,6 +44,12 @@ class SessionReportAndConfirmationTests(unittest.TestCase):
             self.assertTrue(Path(report["actions"]).is_file())
             manifest = json.loads(Path(report["manifest"]).read_text(encoding="utf-8"))
             self.assertTrue(manifest["final_evaluation_revealed"])
+            viewed = dispatch("read_report", {"session_id": session, "state_dir": state})
+            self.assertIn("比较低预算下的策略反馈效率", viewed["content"])
+            for heading in ("研究问题", "DomainSpec", "假设与修订", "实验与可见证据", "Oracle Final Evaluation", "Claim Guard", "限制", "Reproduction Info"): self.assertIn(heading, viewed["content"])
+            exported = root / "exported-report.md"
+            self.assertEqual(dispatch("export_report", {"session_id": session, "state_dir": state, "destination": str(exported)})["status"], "EXPORTED")
+            self.assertEqual(exported.read_text(encoding="utf-8"), viewed["content"])
 
 
 if __name__ == "__main__":

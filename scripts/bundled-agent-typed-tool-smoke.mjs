@@ -1,0 +1,15 @@
+import assert from "node:assert/strict";
+import { Agent } from "./vendor/pi/packages/agent/dist/index.js";
+import { EventStream, Type, getModel } from "./vendor/pi/packages/ai/dist/compat.js";
+const calls = [];
+const usage = { input:0, output:0, cacheRead:0, cacheWrite:0, totalTokens:0, cost:{input:0,output:0,cacheRead:0,cacheWrite:0,total:0} };
+const message = (name, index) => ({ role:"assistant", content:[{type:"toolCall",id:`typed-${index}`,name,arguments:{session_id:"bundled-session"}}], api:"openai-responses",provider:"openai",model:"mock",usage,stopReason:"toolUse",timestamp:Date.now() });
+const done = () => ({ role:"assistant",content:[{type:"text",text:"done"}],api:"openai-responses",provider:"openai",model:"mock",usage,stopReason:"stop",timestamp:Date.now() });
+const stream = (value) => { const result = new EventStream((event) => event.type === "done" || event.type === "error", (event) => event.type === "done" ? event.message : event.error); queueMicrotask(() => result.push({type:"done",reason:value.stopReason,message:value})); return result; };
+const tool = (name) => ({ name, label:name, description:"bundled typed tool", parameters:Type.Object({session_id:Type.String()}), executionMode:"sequential", execute:async () => { calls.push(name); return {content:[{type:"text",text:"ok"}],details:{name}}; } });
+let turn = 0;
+const agent = new Agent({ initialState:{model:getModel("openai","gpt-4o-mini"),tools:[tool("ecomic_observe_state"),tool("ecomic_create_hypothesis")],systemPrompt:"Use typed tools."},getApiKey:()=>"mock-key",toolExecution:"sequential",streamFn:()=>stream(turn++ === 0 ? message("ecomic_observe_state",turn) : turn === 2 ? message("ecomic_create_hypothesis",turn) : done()) });
+await agent.prompt("Run bundled typed-tool smoke.");
+assert.deepEqual(calls,["ecomic_observe_state","ecomic_create_hypothesis"]);
+assert.equal(agent.state.errorMessage,undefined);
+process.stdout.write(JSON.stringify({status:"OK",runtime:"bundled-node",typed_tool_calls:calls.length,system_node_required:false})+"\n");
