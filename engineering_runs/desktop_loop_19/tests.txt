@@ -1,0 +1,1 @@
+Local equivalents previously passed: npm --prefix desktop run test; npm --prefix desktop run build; cargo check --manifest-path desktop/src-tauri/Cargo.toml.

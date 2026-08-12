@@ -1,0 +1,13 @@
+agent_backend/persistence/migrations/005_research_question.sql
+agent_backend/persistence/database_v2.py
+agent_backend/runtime/service_v8.py
+agent_backend/runtime/report_service.py
+agent_backend/rpc.py
+tests_agent/test_session_report_and_confirmation.py
+tests_agent/test_migrations_and_lineage.py
+desktop/src-tauri/src/lib.rs
+desktop/src/bridge.ts
+desktop/src/ReportViewer.tsx
+desktop/src/ReportViewer.test.tsx
+desktop/src/HistoryResearchPage.tsx
+desktop/src/App.tsx

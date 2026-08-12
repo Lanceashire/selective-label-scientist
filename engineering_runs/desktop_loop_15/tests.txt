@@ -1,0 +1,4 @@
+1. tauri:build PASS
+2. installed app starts with PATH=Windows system directories only PASS
+3. installed bundled Node/Pi typed-tool smoke PASS
+4. desktop e2e PASS

@@ -1,0 +1,3 @@
+Vite production build: PASS.
+Tauri Release build: PASS.
+Native Tauri WebView E2E: PASS.

@@ -1,0 +1,14 @@
+{
+  "loop": "desktop_loop_05",
+  "status": "PASS",
+  "criteria": [
+    {"name": "CSV and Parquet imports profile successfully", "passed": true, "evidence": "tests_agent.test_desktop_dataset_import_gate validates both formats through the desktop RPC contract."},
+    {"name": "Malformed input is rejected", "passed": true, "evidence": "The same test covers empty CSV, a structurally malformed UTF-8 CSV, and a non-UTF-8 CSV."},
+    {"name": "Duplicate dataset hash is deduplicated", "passed": true, "evidence": "Two load_dataset calls for one source produce exactly one SQLite datasets row."},
+    {"name": "Million-row preview stays bounded", "passed": true, "evidence": "A 1,000,000 row synthetic CSV returns schema plus no more than 50 sample rows and no rows payload."},
+    {"name": "Desktop file selection and native drop are safe", "passed": true, "evidence": "DatasetImportPage Vitest cases cover picker cancellation and a native dropped file path followed by bounded preflight."},
+    {"name": "Production frontend builds", "passed": true, "evidence": "npm --prefix desktop run build completed after the import UI changes."}
+  ],
+  "blocking_failures": [],
+  "next_loop_allowed": true
+}

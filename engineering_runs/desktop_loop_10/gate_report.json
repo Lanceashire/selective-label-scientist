@@ -1,0 +1,12 @@
+{
+  "loop": "desktop_loop_10",
+  "status": "PASS",
+  "criteria": [
+    {"name":"all required researcher-visible Recharts views render", "passed":true, "evidence":"desktop/src/ExperimentCharts.tsx and ExperimentCharts.test.tsx"},
+    {"name":"outer metrics are absent before final evaluation", "passed":true, "evidence":"ExperimentCharts research-mode test and tests_agent/test_runtime_rpc.py"},
+    {"name":"outer metrics appear only after evaluator-owned finalization", "passed":true, "evidence":"ExperimentCharts final-mode test and tests_agent/test_runtime_rpc.py"},
+    {"name":"adaptive run is rejected after finalization", "passed":true, "evidence":"tests_agent/test_runtime_rpc.py"}
+  ],
+  "blocking_failures": [],
+  "next_loop_allowed": true
+}

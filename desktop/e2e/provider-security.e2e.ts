@@ -29,3 +29,4 @@ describe("ECOMIC Provider security", () => {
     await expect(await browser.$(".form-notice")).toHaveText("Custom OpenAI-Compatible 必须填写 API Base URL。");
   });
 });
+

@@ -1,0 +1,8 @@
+Automated checks completed successfully:
+
+- `npm run test:node` — 10 passed. Includes Pi custom OpenAI-Compatible minimum Tool Calling probe and safe result taxonomy for 200/401/404/429/timeout/network/malformed cases.
+- `npm --prefix desktop run test` — 3 files, 6 tests passed. Includes explicit confirmation requirement for real connection test.
+- `python -m unittest discover -s tests_agent -v` — 20 passed, 1 expected skip (external LexiRiskLabel vendor absent).
+- `npm --prefix desktop run test:e2e` — 2 native Tauri spec files passed, 3 tests passed.
+
+The native test run emits a WebdriverIO teardown warning about clearing a mock session after that session ends. The runner exits 0 and all native tests pass; it does not affect ECOMIC runtime behavior.

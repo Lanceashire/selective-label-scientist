@@ -1,0 +1,20 @@
+{
+  "loop": 2,
+  "title": "Persistent DesktopBridge sidecar",
+  "status": "PASS",
+  "verified_at": "2026-08-11T08:10:02+08:00",
+  "checks": {
+    "persistent_sidecar_health_requests": 20,
+    "python_test_suite": "20 passed, 1 expected skip",
+    "react_ui_tests": "4 passed",
+    "frontend_build": "passed",
+    "rust_build": "passed",
+    "native_release_e2e": "passed"
+  },
+  "evidence": [
+    "tests.txt",
+    "build_log.txt",
+    "changed_files.txt",
+    "known_failures.md"
+  ]
+}

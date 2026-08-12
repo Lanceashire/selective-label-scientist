@@ -1,0 +1,7 @@
+desktop/src/ResearchWorkbench.tsx
+desktop/src/ResearchWorkbench.test.tsx
+desktop/src/ScientistControl.tsx
+desktop/src/bridge.ts
+agent_backend/runtime/service.py
+agent_backend/rpc.py
+desktop/src-tauri/src/lib.rs

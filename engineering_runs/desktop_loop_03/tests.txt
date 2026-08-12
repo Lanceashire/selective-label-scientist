@@ -1,0 +1,15 @@
+Backend regression: python -m unittest discover -s tests_agent -v
+Result: 20 passed, 1 expected skip.
+
+Frontend: npm --prefix desktop run test
+Result: 5 passed.
+
+Native release E2E: ECOMIC_ACCEPTANCE_KEY=<process-only acceptance value> npm --prefix desktop run test:e2e
+Result: 3 passed.
+- DesktopBridge health action: passed.
+- Credential Manager save/mask/clear flow: passed.
+- Custom OpenAI-Compatible with missing Base URL: correctly blocked with a Chinese validation message.
+
+Security postcondition:
+SECRET_SCAN_MATCHES=0
+ECOMIC_CREDENTIAL_ENTRIES=0

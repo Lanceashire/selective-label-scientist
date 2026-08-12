@@ -15,7 +15,8 @@
 ## Released artifact
 
 - release/ECOMIC-Setup-0.3.0.exe
-- SHA-256: `419432fb9acb58cd07eb8f72fe1df9491d47fa575ab81ede8eacf77fa5f503b7`
+- SHA-256: 
+419432fb9acb58cd07eb8f72fe1df9491d47fa575ab81ede8eacf77fa5f503b7
 
 ## Verified local evidence
 

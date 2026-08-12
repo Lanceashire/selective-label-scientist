@@ -1,0 +1,6 @@
+scripts/build-agent-runtime.ps1
+desktop/src-tauri/tauri.conf.json
+release/runtime/ecomic-agent/agent/src/pi-connection-probe.mjs
+release/runtime/ecomic-agent/agent/src/connection-test-contract.mjs
+desktop/src-tauri/target/release/ecomic-agent/**
+desktop/src-tauri/target/release/bundle/nsis/ECOMIC Desktop_0.3.0_x64-setup.exe

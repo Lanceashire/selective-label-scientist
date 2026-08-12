@@ -1,0 +1,18 @@
+Agent integration:
+- agent/src/desktop-scientist-runner-v2.mjs
+- agent/src/pi-connection-probe.mjs
+- agent_backend/agent/scientist.py
+- tests_agent/test_desktop_scientist_mock_gate.py
+- tests_node/desktop_scientist_runner.test.mjs
+- tests_node/pi_agent_core_mock_adaptive.test.mjs
+
+Desktop integration:
+- desktop/src/ScientistControl.tsx
+- desktop/src/ScientistControl.test.tsx
+- desktop/src/ProviderSettingsPage.tsx
+- desktop/src/ProviderSettingsPage.test.tsx
+- desktop/src/bridge.ts
+- desktop/src/App.tsx
+- desktop/src-tauri/src/lib.rs
+- desktop/e2e/desktop-bridge.e2e.ts
+- desktop/e2e/provider-security.e2e.ts

@@ -1,0 +1,44 @@
+{
+    "criteria":  [
+                     {
+                         "evidence":  "final install, launch, uninstall; SHA-256 419432fb9acb58cd07eb8f72fe1df9491d47fa575ab81ede8eacf77fa5f503b7",
+                         "name":  "final local installer",
+                         "passed":  true
+                     },
+                     {
+                         "evidence":  "not available in current environment",
+                         "name":  "clean Windows VM",
+                         "passed":  false
+                     },
+                     {
+                         "evidence":  "not yet performed on clean machine",
+                         "name":  "full setup-only GUI research journey",
+                         "passed":  false
+                     },
+                     {
+                         "evidence":  "not completed across connection/agent/crash/report/global scan",
+                         "name":  "exact fake-key security exercise",
+                         "passed":  false
+                     },
+                     {
+                         "evidence":  "workflow changed locally, not pushed/run",
+                         "name":  "remote GitHub Actions desktop CI",
+                         "passed":  false
+                     },
+                     {
+                         "evidence":  "requires user-confirmed action",
+                         "name":  "live paid Provider manual gate",
+                         "passed":  false
+                     }
+                 ],
+    "status":  "FAIL",
+    "loop":  "desktop_loop_20",
+    "next_loop_allowed":  false,
+    "blocking_failures":  [
+                              "Clean VM evidence missing",
+                              "Full clean-machine GUI journey missing",
+                              "Fake-key end-to-end artefact scan incomplete",
+                              "Remote CI run missing",
+                              "Live provider manual gate pending"
+                          ]
+}

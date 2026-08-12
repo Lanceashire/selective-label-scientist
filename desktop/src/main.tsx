@@ -1,9 +1,18 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import "@wdio/tauri-plugin";
 import { App } from "./App";
+import { DesktopErrorBoundary } from "./DesktopErrorBoundary";
 import "./styles.css";
-import "./provider.css";
 import "./dataset.css";
 
-createRoot(document.getElementById("root")!).render(<React.StrictMode><App /></React.StrictMode>);
+async function bootstrapDesktop(): Promise<void> {
+  // WDIO is loaded only by scripts/build-e2e-desktop.ps1. Production builds keep this branch false.
+  if (import.meta.env.VITE_E2E_WDIO === "true") {
+    await import("./e2e-wdio-bootstrap");
+  }
+  createRoot(document.getElementById("root")!).render(
+    <React.StrictMode><DesktopErrorBoundary><App /></DesktopErrorBoundary></React.StrictMode>,
+  );
+}
+
+void bootstrapDesktop();

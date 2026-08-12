@@ -1,0 +1,11 @@
+Primary Loop 04 changes:
+
+- `agent/src/settings.mjs` — removes file-backed credential persistence; terminal compatibility credentials are process-only.
+- `agent/src/settings_insecure_legacy.mjs` — removed obsolete plaintext credential writer.
+- `agent/src/connection-test-contract.mjs` — stable safe Chinese result taxonomy.
+- `agent/src/pi-connection-probe.mjs` — one-shot Pi Models/Provider Tool Calling probe.
+- `agent/src/pi-extension.ts` — process-only terminal setting flow.
+- `desktop/src-tauri/src/lib.rs` — Windows Credential Manager read, one-shot secure probe launch, profile verification state.
+- `desktop/src/bridge.ts` and `desktop/src/ProviderSettingsPage.tsx` — real connection command, explicit consent and result display.
+- `desktop/src/provider.css` — connection result styles.
+- `tests_node/connection_test_contract.test.mjs`, `tests_node/pi_connection_probe.test.mjs`, provider UI tests and native E2E test — regression coverage.

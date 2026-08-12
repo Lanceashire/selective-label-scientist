@@ -1,0 +1,2 @@
+node --test tests_node/settings_secure.test.mjs tests_node/connection_test_contract.test.mjs tests_node/pi_connection_probe.test.mjs
+PASS 3/3

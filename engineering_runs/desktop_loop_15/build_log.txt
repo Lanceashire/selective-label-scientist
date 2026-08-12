@@ -1,0 +1,1 @@
+npm --prefix desktop run tauri:build exit 0; resource mapping ../../release/runtime/ecomic-agent -> ecomic-agent confirmed.

@@ -45,5 +45,59 @@ class DesktopDatasetDomainSpecTests(unittest.TestCase):
             self.assertTrue(run["run_id"])
 
 
+    def test_atomic_domain_confirmation_never_persists_a_half_confirmed_version(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, state = Path(directory), Path(directory) / "state"
+            path = self.make_csv(root)
+            session = dispatch("load_dataset", {"path": str(path), "state_dir": str(state)})["session_id"]
+            with self.assertRaisesRegex(ValueError, "observation action description"):
+                dispatch("confirm_domain_spec", {
+                    "session_id": session, "state_dir": str(state), "decision_column": "decision",
+                    "observed_values": ["reviewed"], "non_observed_values": ["hidden"],
+                    "target_column": "outcome", "cost_column": "cost", "reversible": True,
+                    "simulatable": True, "description": "",
+                })
+            db = DatabaseManager(state / "ecomic.db")
+            try:
+                self.assertEqual(db.connection.execute("SELECT count(*) FROM human_confirmations WHERE session_id=?", (session,)).fetchone()[0], 0)
+                self.assertEqual(db.connection.execute("SELECT count(*) FROM domain_specs WHERE session_id=?", (session,)).fetchone()[0], 1)
+            finally:
+                db.close()
+            confirmed = dispatch("confirm_domain_spec", {
+                "session_id": session, "state_dir": str(state), "decision_column": "decision",
+                "observed_values": ["reviewed"], "non_observed_values": ["hidden"],
+                "target_column": "outcome", "cost_column": "cost", "reversible": True,
+                "simulatable": True, "description": "offline replay",
+            })
+            self.assertEqual(confirmed["status"], "CONFIRMED")
+            db = DatabaseManager(state / "ecomic.db")
+            try:
+                self.assertEqual(db.connection.execute("SELECT count(*) FROM human_confirmations WHERE session_id=?", (session,)).fetchone()[0], 2)
+                versions = db.connection.execute("SELECT confirmed FROM domain_specs WHERE session_id=? ORDER BY version", (session,)).fetchall()
+                self.assertEqual([row[0] for row in versions], [0, 1])
+            finally:
+                db.close()
+    def test_prechecked_handle_is_reused_when_source_file_is_no_longer_available(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, state = Path(directory), Path(directory) / "state"
+            path = self.make_csv(root)
+            preview = dispatch("inspect_dataset", {"path": str(path)})
+            self.assertTrue(preview["dataset_handle_id"].startswith("dataset_tmp_"))
+            path.unlink()
+            created = dispatch("load_dataset", {
+                "path": str(path), "state_dir": str(state), "description": "reuse precheck",
+                "dataset_handle_id": preview["dataset_handle_id"],
+            })
+            self.assertEqual(created["status"], "NEEDS_USER_INPUT")
+            self.assertEqual(created["schema"]["row_count"], 80)
+    def test_new_session_resumes_from_sqlite_metadata_after_source_is_removed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, state = Path(directory), Path(directory) / "state"
+            path = self.make_csv(root)
+            created = dispatch("load_dataset", {"path": str(path), "state_dir": str(state)})
+            path.unlink()
+            resumed = dispatch("resume_session", {"session_id": created["session_id"], "state_dir": str(state)})
+            self.assertEqual(resumed["schema"]["row_count"], 80)
+            self.assertIn("decision", resumed["candidates"])
 if __name__ == "__main__":
     unittest.main()

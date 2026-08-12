@@ -1,0 +1,11 @@
+desktop/src/ProviderSettingsPage.tsx
+desktop/src/ProviderSettingsPage.test.tsx
+desktop/src/provider.css
+desktop/src/App.tsx
+desktop/src/bridge.ts
+desktop/src/main.tsx
+desktop/e2e/provider-security.e2e.ts
+desktop/src-tauri/Cargo.toml
+desktop/src-tauri/Cargo.lock
+desktop/src-tauri/src/lib.rs
+desktop/src-tauri/tauri.conf.json

@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ open: vi.fn(), inspectDataset: vi.fn(), loadDataset: vi.fn() }));
+const mocks = vi.hoisted(() => ({ open: vi.fn(), inspectDataset: vi.fn(), loadDataset: vi.fn(), restartBackend: vi.fn(), subscribePrecheckEvents: vi.fn() }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: mocks.open }));
-vi.mock("./bridge", () => ({ DesktopBridge: { inspectDataset: mocks.inspectDataset, loadDataset: mocks.loadDataset } }));
+vi.mock("./bridge", () => ({ DesktopBridge: { inspectDataset: mocks.inspectDataset, loadDataset: mocks.loadDataset, restartBackend: mocks.restartBackend, subscribePrecheckEvents: mocks.subscribePrecheckEvents } }));
 import { DatasetImportPage } from "./DatasetImportPage";
 
 describe("Dataset import page", () => {
@@ -27,5 +27,27 @@ describe("Dataset import page", () => {
     await waitFor(() => expect(mocks.inspectDataset).toHaveBeenCalledWith("D:\\data\\study.csv"));
     expect(screen.getByText("abc")).toBeTruthy();
     expect(screen.getByText("3 / 1")).toBeTruthy();
+  });
+  it("cancels an in-flight precheck by restarting only the local backend", async () => {
+    mocks.inspectDataset.mockImplementation(() => new Promise(() => undefined));
+    mocks.restartBackend.mockResolvedValue({ status: "RESTARTED" });
+    render(<DatasetImportPage />);
+    fireEvent.change(screen.getByLabelText("数据集路径"), { target: { value: "D:\\data\\slow.csv" } });
+    fireEvent.click(screen.getByRole("button", { name: "预检数据集" }));
+    expect(await screen.findByRole("button", { name: "取消预检" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "取消预检" }));
+    await waitFor(() => expect(mocks.restartBackend).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("status").textContent).toContain("预检已取消");
+  });
+  it("renders streamed precheck stage and percentage without waiting for completion", async () => {
+    let handler: ((event: { type: "precheck_progress"; request_id: string; stage: "读取文件" | "解析 Schema" | "统计字段" | "生成样本" | "完成"; percent: number }) => void) | undefined;
+    mocks.subscribePrecheckEvents.mockImplementation(async (next: typeof handler) => { handler = next; return () => undefined; });
+    mocks.inspectDataset.mockImplementation(() => new Promise(() => undefined));
+    render(<DatasetImportPage />);
+    fireEvent.change(screen.getByLabelText("数据集路径"), { target: { value: "D:\\data\\progress.csv" } });
+    fireEvent.click(screen.getByRole("button", { name: "预检数据集" }));
+    await waitFor(() => expect(handler).toBeTruthy());
+    handler?.({ type: "precheck_progress", request_id: "req_1", stage: "统计字段", percent: 82 });
+    expect(await screen.findByText("预检阶段：统计字段 · 82%")).toBeTruthy();
   });
 });

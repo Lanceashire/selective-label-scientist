@@ -1,0 +1,7 @@
+Loop 0 is a backend baseline and has no desktop build step.
+
+Environment checked:
+- Node v24.14.0
+- Python 3.13.13
+- Git commit 9023c9a
+- Rust/Cargo: unavailable on this development machine (relevant only to the later Tauri build gate).

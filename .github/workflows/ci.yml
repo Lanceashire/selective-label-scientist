@@ -11,6 +11,9 @@ name: validation
         default: false
         type: boolean
 
+env:
+  PI_COMMIT: 2a9b4ebc680053c64e31f635b0b22d5e22564001
+
 jobs:
   python:
     strategy:
@@ -34,11 +37,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: git clone --depth 1 https://github.com/earendil-works/pi vendor/pi
-      - run: npm install --ignore-scripts
-        working-directory: vendor/pi
-      - run: npm run hydrate:model-data && npm run build:offline
-        working-directory: vendor/pi
       - run: node --test tests_node/*.test.mjs
   pi-runtime-manual-integration:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_pi == 'true'
@@ -48,7 +46,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: git clone --depth 1 https://github.com/earendil-works/pi vendor/pi
+      - run: git init vendor/pi && git -C vendor/pi remote add origin https://github.com/earendil-works/pi && git -C vendor/pi fetch --depth 1 origin ${{ env.PI_COMMIT }} && git -C vendor/pi checkout --detach ${{ env.PI_COMMIT }}
       - run: npm install --ignore-scripts
         working-directory: vendor/pi
       - run: npm run hydrate:model-data && npm run build:offline
@@ -79,6 +77,16 @@ jobs:
         working-directory: desktop
       - run: npm run build
         working-directory: desktop
-      - shell: pwsh
-        run: New-Item -ItemType Directory -Force release/runtime/ecomic-agent | Out-Null
+      - name: Verify production bundle excludes WDIO/WebDriver
+        shell: pwsh
+        run: ./scripts/verify-production-bundle.ps1
       - run: cargo check --manifest-path desktop/src-tauri/Cargo.toml
+      - name: Verify Windows desktop cleanup and diagnostic redaction
+        shell: pwsh
+        run: cargo test --release --manifest-path desktop/src-tauri/Cargo.toml process_cleanup_tests -- --nocapture
+      - name: Build bundled Python runtime for non-health desktop RPC E2E
+        shell: pwsh
+        run: ./scripts/build-backend.ps1
+      - name: Validate bundled backend non-health RPC workflow
+        shell: pwsh
+        run: ./scripts/verify-backend-exe.ps1

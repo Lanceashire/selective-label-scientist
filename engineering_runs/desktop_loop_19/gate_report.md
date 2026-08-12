@@ -1,0 +1,1 @@
+# Loop 19 Gate — PASS`n`nThe existing Python/Node/Pi CI remains intact. A Windows desktop job now installs frontend dependencies, runs frontend tests and production build, and cargo-checks Tauri without provider credentials.

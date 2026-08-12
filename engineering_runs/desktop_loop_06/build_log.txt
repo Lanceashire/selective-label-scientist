@@ -1,0 +1,9 @@
+2026-08-11
+
+npm --prefix desktop run build
+- TypeScript and Vite production build: PASS
+
+npm --prefix desktop run tauri:build
+- native release executable: PASS
+- NSIS bundle: desktop/src-tauri/target/release/bundle/nsis/ECOMIC Desktop_0.3.0_x64-setup.exe
+- MSI bundle: desktop/src-tauri/target/release/bundle/msi/ECOMIC Desktop_0.3.0_x64_en-US.msi

@@ -20,6 +20,61 @@ class ResearchRuntime(BaseRuntime):
             for row in self.db.list_sessions()
         ]
 
+    def confirm_domain_spec(
+        self,
+        session_id: str,
+        decision_column: str,
+        observed_values: list[str],
+        non_observed_values: list[str],
+        *,
+        reversible: bool,
+        simulatable: bool,
+        description: str,
+        target_column: str | None = None,
+        cost_column: str | None = None,
+        decision_time: str | None = None,
+        outcome_time: str | None = None,
+    ) -> dict[str, object]:
+        """Atomically approve decision semantics and the observation action."""
+        self._open(session_id)
+        observed = [str(value).strip() for value in observed_values if str(value).strip()]
+        hidden = [str(value).strip() for value in non_observed_values if str(value).strip()]
+        action = description.strip()
+        if not decision_column.strip() or not observed or not hidden or set(observed) & set(hidden):
+            raise ValueError("decision mapping requires disjoint observed and non-observed values")
+        if not action:
+            raise ValueError("observation action description is required")
+        spec = deepcopy(self._spec(session_id))
+        spec["historical_decision"] = {
+            "column": decision_column,
+            "observed_action_values": observed,
+            "non_observed_action_values": hidden,
+            "unknown_action_values": [],
+            "confidence": 1.0,
+            "confirmed": True,
+        }
+        if target_column:
+            spec["outcome"]["column"] = str(target_column)
+        if cost_column:
+            spec["observation_cost"]["column"] = str(cost_column)
+        spec["time"] = {"decision_time": decision_time, "outcome_time": outcome_time}
+        spec["observation_action"] = {
+            "description": action,
+            "reversible": bool(reversible),
+            "simulatable": bool(simulatable),
+            "confirmed": True,
+        }
+        audit = audit_semantics(spec, self._rows(session_id))
+        spec["audit_status"] = audit["status"]
+        spec_id = self.db.confirm_domain_spec_transaction(
+            session_id,
+            spec,
+            audit["status"],
+            {"column": decision_column, "observed_values": observed, "non_observed_values": hidden},
+            {"reversible": bool(reversible), "simulatable": bool(simulatable), "description": action},
+        )
+        self.db.append_event(session_id, "confirm_domain_spec", {"spec_id": spec_id, "column": decision_column}, "atomic human DomainSpec confirmation", "COMPLETED")
+        return {"session_id": session_id, "domain_spec": spec, "audit": audit, "status": "CONFIRMED"}
     def confirm_decision_mapping(
         self,
         session_id: str,

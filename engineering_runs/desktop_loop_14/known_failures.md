@@ -1,0 +1,2 @@
+Non-blocking test harness warnings: WDIO reports that mock-store cleanup needs a sessionId after tests end; exit code is 0 and assertions pass. Diagnostics also could not determine disk space in the automation harness.
+No product runtime failure observed in this gate.

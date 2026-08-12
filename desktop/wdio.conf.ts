@@ -1,16 +1,15 @@
 import type { Options } from "@wdio/types";
 
+const application = process.env.ECOMIC_E2E_APPLICATION ?? "./src-tauri/target-e2e/release/ecomic-desktop.exe";
+
 export const config: Options.Testrunner = {
   runner: "local",
-  specs: ["./e2e/**/*.e2e.ts"],
+  specs: ["./e2e/desktop-bridge.e2e.ts"],
   maxInstances: 1,
-  capabilities: [{
-    browserName: "tauri",
-    "tauri:options": { application: "./src-tauri/target/release/ecomic-desktop.exe" },
-  }] as never,
+  capabilities: [{ browserName: "tauri", "tauri:options": { application } }] as never,
   logLevel: "warn",
   framework: "mocha",
   reporters: ["spec"],
   mochaOpts: { ui: "bdd", timeout: 60_000 },
-  services: [["@wdio/tauri-service", { driverProvider: "embedded" }]],
+  services: [["@wdio/tauri-service", { driverProvider: "external", appBinaryPath: application, captureFrontendLogs: true, captureBackendLogs: true }]],
 };

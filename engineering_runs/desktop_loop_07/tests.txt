@@ -1,0 +1,12 @@
+2026-08-11
+PASS python -m unittest discover -s tests_agent -v
+  Result: 23 passed, 1 expected skip (read-only LexiRiskLabel reference unavailable).
+PASS node --test tests_node/*.test.mjs
+  Result: 12 passed, including Pi Agent Core adaptive Mock Provider and custom provider tests.
+PASS npm --prefix desktop run test
+  Result: 6 files, 11 tests passed, including Ctrl+V API paste/save behavior.
+PASS npm --prefix desktop run build
+PASS cargo check --manifest-path desktop/src-tauri/Cargo.toml
+PASS npm --prefix desktop run tauri:build
+PASS npm --prefix desktop run test:e2e
+  Result: 2 specs, 3 native Tauri assertions passed.

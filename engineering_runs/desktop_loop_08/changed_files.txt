@@ -1,0 +1,8 @@
+agent_backend/runtime/service.py
+agent_backend/stream_rpc.py
+agent/src/desktop-scientist-runner-v2.mjs
+desktop/src/bridge.ts
+desktop/src/ScientistControl.tsx
+desktop/src/ScientistControl.test.tsx
+desktop/src-tauri/src/lib.rs
+tests_agent/test_desktop_stream_progress.py

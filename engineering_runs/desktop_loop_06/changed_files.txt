@@ -1,0 +1,8 @@
+desktop/src/App.tsx
+desktop/src/bridge.ts
+desktop/src/DomainSpecWizard.tsx
+desktop/src/DomainSpecWizard.test.tsx
+desktop/src/dataset.css
+agent_backend/runtime/service.py
+agent_backend/persistence/database.py
+tests_agent/test_desktop_dataset_domainspec.py

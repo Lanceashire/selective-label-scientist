@@ -1,0 +1,14 @@
+{
+  "loop": "desktop_loop_03",
+  "status": "PASS",
+  "criteria": [
+    {"name": "Only Pi-declared providers are shown", "passed": true, "evidence": "agent/src/settings.mjs provider registry mirrored by desktop/src-tauri/src/lib.rs"},
+    {"name": "API Key uses Windows Credential Manager", "passed": true, "evidence": "keyring windows-native feature plus native release E2E"},
+    {"name": "UI masks and clears API Key", "passed": true, "evidence": "provider-security.e2e.ts"},
+    {"name": "Custom OpenAI-Compatible requires Base URL and Model ID", "passed": true, "evidence": "provider-security.e2e.ts"},
+    {"name": "No acceptance key remains in normal files or credentials after deletion", "passed": true, "evidence": "SECRET_SCAN_MATCHES=0; ECOMIC_CREDENTIAL_ENTRIES=0"},
+    {"name": "Release executable and installers build", "passed": true, "evidence": "tauri build completed NSIS and MSI bundles"}
+  ],
+  "blocking_failures": [],
+  "next_loop_allowed": true
+}

@@ -1,0 +1,8 @@
+agent_backend/runtime/service_v8.py
+agent_backend/rpc.py
+tests_agent/test_desktop_history_recovery.py
+desktop/src/bridge.ts
+desktop/src/HistoryResearchPage.tsx
+desktop/src/HistoryResearchPage.test.tsx
+desktop/src/App.tsx
+desktop/src/styles.css

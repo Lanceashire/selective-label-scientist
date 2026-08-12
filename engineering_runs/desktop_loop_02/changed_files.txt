@@ -1,0 +1,13 @@
+agent_backend/desktop_sidecar.py
+tests_agent/test_desktop_sidecar.py
+desktop/src-tauri/src/lib.rs
+desktop/src-tauri/Cargo.toml
+desktop/src-tauri/capabilities/default.json
+desktop/src-tauri/tauri.conf.json
+desktop/src/bridge.ts
+desktop/src/App.tsx
+desktop/src/bridge-ui.test.tsx
+desktop/src/main.tsx
+desktop/e2e/desktop-bridge.e2e.ts
+desktop/wdio.conf.ts
+desktop/package.json
