@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS claims (claim_id TEXT PRIMARY KEY, session_id TEXT NO
 CREATE TABLE IF NOT EXISTS artifacts (artifact_id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(session_id), artifact_type TEXT NOT NULL, path TEXT NOT NULL, sha256 TEXT NOT NULL, metadata_json TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS final_evaluations (evaluation_id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(session_id), run_id TEXT NOT NULL REFERENCES experiment_runs(run_id), metrics_json TEXT NOT NULL, revealed_at TEXT NOT NULL, UNIQUE(session_id));
 CREATE TABLE IF NOT EXISTS human_confirmations (confirmation_id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(session_id), field_type TEXT NOT NULL, candidate_json TEXT NOT NULL, selected_value TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS session_metadata (session_id TEXT PRIMARY KEY REFERENCES sessions(session_id), schema_json TEXT NOT NULL, candidates_json TEXT NOT NULL, created_at TEXT NOT NULL);
 """
 
 
@@ -38,6 +39,7 @@ class DatabaseManager:
         self.connection = sqlite3.connect(self.path, check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA foreign_keys=ON")
+        self.connection.execute("PRAGMA busy_timeout=5000")
         self.connection.execute("PRAGMA journal_mode=WAL")
         self.migrate()
 
@@ -76,6 +78,55 @@ class DatabaseManager:
         version = int(self.connection.execute("SELECT COALESCE(MAX(version),0)+1 FROM domain_specs WHERE session_id=?", (session_id,)).fetchone()[0]); spec_id = _id("spec")
         with self.transaction(): self.connection.execute("INSERT INTO domain_specs VALUES(?,?,?,?,?,?,?)", (spec_id, session_id, version, _json(content), int(confirmed), audit_status, _now()))
         self.update_session_state(session_id, current_domain_spec_id=spec_id); return spec_id
+    def confirm_domain_spec_transaction(
+        self,
+        session_id: str,
+        content: dict[str, Any],
+        audit_status: str,
+        decision_confirmation: dict[str, Any],
+        observation_confirmation: dict[str, Any],
+    ) -> str:
+        """Persist the whole human DomainSpec approval as one SQLite transaction."""
+        spec_id = _id("spec")
+        now = _now()
+        with self.transaction():
+            session = self.connection.execute("SELECT session_id FROM sessions WHERE session_id=?", (session_id,)).fetchone()
+            if session is None:
+                raise KeyError("session does not exist")
+            version = int(self.connection.execute(
+                "SELECT COALESCE(MAX(version), 0) + 1 FROM domain_specs WHERE session_id=?", (session_id,)
+            ).fetchone()[0])
+            self.connection.execute(
+                "INSERT INTO human_confirmations VALUES(?,?,?,?,?,?)",
+                (_id("confirm"), session_id, "decision_mapping", _json(decision_confirmation), str(decision_confirmation["column"]), now),
+            )
+            self.connection.execute(
+                "INSERT INTO human_confirmations VALUES(?,?,?,?,?,?)",
+                (_id("confirm"), session_id, "observation_action", _json(observation_confirmation), "confirmed", now),
+            )
+            self.connection.execute(
+                "INSERT INTO domain_specs VALUES(?,?,?,?,?,?,?)",
+                (spec_id, session_id, version, _json(content), 1, audit_status, now),
+            )
+            self.connection.execute(
+                "UPDATE sessions SET current_domain_spec_id=?, updated_at=? WHERE session_id=?",
+                (spec_id, now, session_id),
+            )
+        return spec_id
+    def save_session_metadata(self, session_id: str, schema: dict[str, Any], candidates: dict[str, Any]) -> None:
+        with self.transaction():
+            self.connection.execute(
+                "INSERT OR REPLACE INTO session_metadata(session_id, schema_json, candidates_json, created_at) VALUES(?,?,?,?)",
+                (session_id, _json(schema), _json(candidates), _now()),
+            )
+
+    def get_session_metadata(self, session_id: str) -> dict[str, Any] | None:
+        row = self.connection.execute(
+            "SELECT schema_json, candidates_json FROM session_metadata WHERE session_id=?", (session_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        return {"schema": json.loads(row["schema_json"]), "candidates": json.loads(row["candidates_json"])}
     def save_hypothesis(self, session_id: str, content: str, status: str = "TESTING", parent_hypothesis_id: str | None = None) -> str:
         version = int(self.connection.execute("SELECT COALESCE(MAX(version),0)+1 FROM hypotheses WHERE session_id=?", (session_id,)).fetchone()[0]); hypothesis_id = _id("hyp")
         with self.transaction(): self.connection.execute("INSERT INTO hypotheses VALUES(?,?,?,?,?,?,?)", (hypothesis_id, session_id, version, parent_hypothesis_id, content, status, _now()))

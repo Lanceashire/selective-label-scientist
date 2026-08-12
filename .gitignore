@@ -14,4 +14,14 @@ vendor/pi/
 vendor/LexiRiskLabel/
 *.egg-info/
 desktop/src-tauri/target/
+desktop/src-tauri/target-e2e/
 desktop/src-tauri/gen/
+desktop/logs/
+build/
+release/
+state/
+*.bak
+*.before-*.bak
+*.log
+*.pid
+ECOMIC_Scientist_Agent/

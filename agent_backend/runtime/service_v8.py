@@ -124,8 +124,22 @@ class ResearchRuntime(BaseRuntime):
         return result
 
     def resume_desktop_session(self, session_id: str) -> dict[str, Any]:
-        """Rehydrate the exact persisted session metadata for the desktop, never a fresh Session."""
+        """Rehydrate persisted desktop metadata without reopening the source dataset."""
         state = self._session(session_id)
+        spec = json.loads(state["domain_specs"][-1]["content_json"]) if state["domain_specs"] else {}
+        metadata = self.db.get_session_metadata(session_id)
+        if metadata is not None:
+            return {
+                "session_id": session_id,
+                "status": state["status"],
+                "schema": metadata["schema"],
+                "candidates": metadata["candidates"],
+                "domain_spec": spec,
+                "snapshot": self.db.latest_environment_snapshot(session_id),
+                "research_plan_locked": bool(state["research_plan_locked"]),
+                "final_evaluation_revealed": bool(state["final_evaluation_revealed"]),
+            }
+        # Backward compatibility for sessions created before metadata caching.
         dataset = self.db.connection.execute(
             "SELECT original_path FROM datasets WHERE dataset_id=?", (state["dataset_id"],)
         ).fetchone()
@@ -137,11 +151,12 @@ class ResearchRuntime(BaseRuntime):
             candidates = infer_semantics(
                 {"path": str(handle.path), "hash": handle.sha256, "columns": handle.columns, "rows": rows}, ""
             )["candidates"]
-            spec = json.loads(state["domain_specs"][-1]["content_json"]) if state["domain_specs"] else {}
+            schema = handle.profile()
+            self.db.save_session_metadata(session_id, schema, candidates)
             return {
                 "session_id": session_id,
                 "status": state["status"],
-                "schema": handle.profile(),
+                "schema": schema,
                 "candidates": candidates,
                 "domain_spec": spec,
                 "snapshot": self.db.latest_environment_snapshot(session_id),
@@ -150,7 +165,6 @@ class ResearchRuntime(BaseRuntime):
             }
         finally:
             handle.connection.close()
-
     def delete_session(self, session_id: str) -> dict[str, str]:
         """Delete one explicitly selected session and its generated artifacts, never the source dataset."""
         self._session(session_id)
@@ -161,6 +175,7 @@ class ResearchRuntime(BaseRuntime):
             self.db.connection.execute("DELETE FROM artifacts WHERE session_id=?", (session_id,))
             self.db.connection.execute("DELETE FROM agent_events WHERE session_id=?", (session_id,))
             self.db.connection.execute("DELETE FROM human_confirmations WHERE session_id=?", (session_id,))
+            self.db.connection.execute("DELETE FROM session_metadata WHERE session_id=?", (session_id,))
             self.db.connection.execute("DELETE FROM claims WHERE session_id=?", (session_id,))
             self.db.connection.execute("DELETE FROM experiment_runs WHERE session_id=?", (session_id,))
             self.db.connection.execute("DELETE FROM experiment_plans WHERE session_id=?", (session_id,))

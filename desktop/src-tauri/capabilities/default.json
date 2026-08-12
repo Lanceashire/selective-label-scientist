@@ -1,1 +1,1 @@
-{"$schema":"../gen/schemas/desktop-schema.json","identifier":"default","description":"Default permissions for ECOMIC Desktop","windows":["main"],"permissions":["core:default","dialog:default","wdio:default","wdio-webdriver:default"]}
+{"$schema":"../gen/schemas/desktop-schema.json","identifier":"default","description":"Default permissions for ECOMIC Desktop","windows":["main"],"permissions":["core:default","dialog:default"]}

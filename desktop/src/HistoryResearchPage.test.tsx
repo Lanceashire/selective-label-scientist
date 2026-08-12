@@ -27,5 +27,14 @@ describe("HistoryResearchPage", () => {
     fireEvent.click(screen.getByRole("button", { name:"删除" }));
     expect(screen.getByText("确认删除此 Session？")).toBeTruthy();
     expect(deleteSession).not.toHaveBeenCalled();
+  });  it("opens a persisted report directly without resuming the dataset", async () => {
+    resumeSession.mockClear();
+    listSessions.mockResolvedValueOnce({ sessions:[entry] });
+    const onReport = vi.fn();
+    render(<HistoryResearchPage onResume={vi.fn()} onExperiments={vi.fn()} onReport={onReport} />);
+    await screen.findByText("study.csv");
+    fireEvent.click(screen.getByRole("button", { name: "查看报告" }));
+    expect(onReport).toHaveBeenCalledWith("session-history");
+    expect(resumeSession).not.toHaveBeenCalled();
   });
 });

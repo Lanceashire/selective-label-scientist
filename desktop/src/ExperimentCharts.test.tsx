@@ -12,3 +12,15 @@ describe("ExperimentCharts final evaluation", () => it("renders final metrics on
  expect(screen.getByText("roc_auc")).toBeTruthy();
  expect(screen.getByText("0.8123")).toBeTruthy();
 }));
+describe("ExperimentCharts bounded rendering", () => it("shows a sampled-data notice when an oversized trajectory reaches the renderer", async () => {
+  call.mockResolvedValueOnce({ research_mode:true, runs:[{run_id:"r1",policy:"Random",budget:5,rounds:2001,status:"COMPLETED"}], policy_comparison:[{policy:"Random",budget:5,rounds:2001,feedback_count:2001,budget_utilization:1}], feedback_trajectory:Array.from({ length: 2001 }, (_, index) => ({ run_id:"r1", policy:"Random", round:index + 1, feedback_count:index + 1, budget:5 })), final_metrics:null });
+  render(<ExperimentCharts session={session} />);
+  expect(await screen.findByText(/图表已降采样显示/)).toBeTruthy();
+}));
+describe("ExperimentCharts failure recovery", () => it("shows a retryable error instead of permanent loading", async () => {
+  call.mockRejectedValueOnce(new Error("chart RPC failed"));
+  render(<ExperimentCharts session={session} />);
+  expect(await screen.findByText("实验数据加载失败")).toBeTruthy();
+  expect(screen.getByText("chart RPC failed")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "重新加载" })).toBeTruthy();
+}));

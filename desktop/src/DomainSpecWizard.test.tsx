@@ -19,8 +19,8 @@ const session = {
 };
 
 describe("DomainSpec wizard", () => {
-  it("walks a user through non-JSON confirmation and writes decision then observation versions", async () => {
-    call.mockResolvedValueOnce({ audit: { status: "OK" } }).mockResolvedValueOnce({ status: "OK" });
+  it("walks a user through non-JSON confirmation and commits one atomic DomainSpec", async () => {
+    call.mockResolvedValueOnce({ audit: { status: "OK" } });
     const confirmed = vi.fn();
     render(<DomainSpecWizard session={session} onConfirmed={confirmed} />);
     const next = () => screen.getByRole("button", { name: /下一步/ });
@@ -36,9 +36,8 @@ describe("DomainSpec wizard", () => {
     fireEvent.click(next());
     fireEvent.click(next());
     fireEvent.click(screen.getByRole("button", { name: /确认并版本化/ }));
-    await waitFor(() => expect(call).toHaveBeenCalledTimes(2));
-    expect(call).toHaveBeenNthCalledWith(1, "confirm_decision_mapping", expect.objectContaining({ session_id: "session-domain-test", decision_column: "decision", observed_values: ["reviewed"], non_observed_values: ["not_reviewed"], target_column: "outcome" }));
-    expect(call).toHaveBeenNthCalledWith(2, "confirm_observation_action", expect.objectContaining({ reversible: true, simulatable: true, description: "离线回放审核动作" }));
+    await waitFor(() => expect(call).toHaveBeenCalledTimes(1));
+    expect(call).toHaveBeenCalledWith("confirm_domain_spec", expect.objectContaining({ session_id: "session-domain-test", decision_column: "decision", observed_values: ["reviewed"], non_observed_values: ["not_reviewed"], target_column: "outcome", reversible: true, simulatable: true, description: "离线回放审核动作" }));
     expect(confirmed).toHaveBeenCalledOnce();
   });
 });
