@@ -20,6 +20,7 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 const SERVICE: &str = "ECOMIC Desktop";
 static RUNTIME_DIR: OnceLock<PathBuf> = OnceLock::new();
 static DIAGNOSTIC_LOG_DIR: OnceLock<PathBuf> = OnceLock::new();
+static STATE_DIR: OnceLock<PathBuf> = OnceLock::new();
 static REQUEST_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 static TASK_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -46,9 +47,20 @@ struct ScientistTask {
     session_id: String,
     status: Mutex<String>,
     child: Mutex<Option<Child>>,
+    provider: String,
+    model: String,
+    created_at: u128,
+    started_at: Mutex<Option<u128>>,
+    completed_at: Mutex<Option<u128>>,
+    pid: Mutex<Option<u32>>,
+    last_event: Mutex<Option<String>>,
+    last_error_code: Mutex<Option<String>>,
 }
 #[derive(Clone)]
 struct TaskManager(Arc<Mutex<HashMap<String, Arc<ScientistTask>>>>);
+
+/// Maximum number of terminal tasks retained in history before oldest are pruned.
+const MAX_TASK_HISTORY: usize = 50;
 
 fn task_id() -> String {
     format!("task_{}", TASK_SEQUENCE.fetch_add(1, Ordering::Relaxed))
@@ -62,6 +74,39 @@ fn task_status(task: &ScientistTask) -> String {
 fn set_task_status(task: &ScientistTask, status: &str) {
     if let Ok(mut value) = task.status.lock() {
         *value = status.into();
+    }
+    if matches!(status, "COMPLETED" | "FAILED" | "CANCELLED" | "TIMED_OUT") {
+        if let Ok(mut slot) = task.completed_at.lock() {
+            *slot = Some(chrono_like_timestamp());
+        }
+    }
+}
+fn set_task_last_event(task: &ScientistTask, event_type: &str) {
+    if let Ok(mut slot) = task.last_event.lock() {
+        *slot = Some(event_type.into());
+    }
+}
+fn set_task_error_code(task: &ScientistTask, code: &str) {
+    if let Ok(mut slot) = task.last_error_code.lock() {
+        *slot = Some(code.into());
+    }
+}
+fn is_terminal(status: &str) -> bool {
+    matches!(status, "COMPLETED" | "FAILED" | "CANCELLED" | "TIMED_OUT")
+}
+fn prune_task_history(map: &mut HashMap<String, Arc<ScientistTask>>) {
+    if map.len() <= MAX_TASK_HISTORY {
+        return;
+    }
+    let mut terminal: Vec<(String, u128)> = map
+        .iter()
+        .filter(|(_, t)| is_terminal(&task_status(t)))
+        .map(|(id, t)| (id.clone(), t.completed_at.lock().ok().and_then(|v| *v).unwrap_or(0)))
+        .collect();
+    terminal.sort_by_key(|(_, ts)| *ts);
+    let to_remove = terminal.len().saturating_sub(MAX_TASK_HISTORY / 2);
+    for (id, _) in terminal.into_iter().take(to_remove) {
+        map.remove(&id);
     }
 }
 
@@ -88,6 +133,12 @@ struct Profile {
     base_url: Option<String>,
     tool_calling_verified: bool,
     last_connection_test: Option<String>,
+    #[serde(default)]
+    last_connection_test_status: Option<String>,
+    #[serde(default)]
+    last_connection_test_at: Option<String>,
+    #[serde(default)]
+    verified_fingerprint: Option<String>,
 }
 #[derive(Default, Deserialize, Serialize)]
 struct Store {
@@ -149,6 +200,39 @@ fn node_executable() -> PathBuf {
     env::var_os("ECOMIC_NODE")
         .map(PathBuf::from)
         .unwrap_or_else(|| runtime_dir().join("node.exe"))
+}
+fn state_dir() -> PathBuf {
+    STATE_DIR
+        .get()
+        .cloned()
+        .unwrap_or_else(|| runtime_dir().join("state"))
+}
+fn scientist_runner_path() -> PathBuf {
+    env::var_os("ECOMIC_SCIENTIST_RUNNER")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| runtime_dir().join("agent/src/desktop-scientist-runner-v2.mjs"))
+}
+fn read_runtime_manifest() -> Option<Value> {
+    let path = runtime_dir().join("runtime-manifest.json");
+    fs::read_to_string(&path)
+        .ok()
+        .and_then(|content| serde_json::from_str(&content).ok())
+}
+fn check_file_exists(path: &PathBuf) -> bool {
+    path.is_file()
+}
+fn read_pi_commit() -> Option<String> {
+    // Read from runtime-manifest.json first, then fall back to .pi-version
+    if let Some(manifest) = read_runtime_manifest() {
+        if let Some(commit) = manifest.get("pi_commit").and_then(Value::as_str) {
+            return Some(commit.to_owned());
+        }
+    }
+    let pi_version = root().join(".pi-version");
+    fs::read_to_string(&pi_version)
+        .ok()
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
 }
 fn next_request_id() -> String {
     format!("req_{}", REQUEST_SEQUENCE.fetch_add(1, Ordering::Relaxed))
@@ -602,13 +686,45 @@ fn save_profile<R: Runtime>(app: &AppHandle<R>, value: &Value) -> Result<Value, 
         return Err("api key required".into());
     }
     let mut store = load(app)?;
+    // Compute fingerprint for the new configuration
+    let credential_version = if !api.is_empty() { "v1" } else { "existing" };
+    let pi_commit = read_pi_commit();
+    let new_fingerprint = format!(
+        "{}|{}|{}|{}|{}",
+        provider,
+        model,
+        base.as_deref().unwrap_or(""),
+        credential_version,
+        pi_commit.as_deref().unwrap_or("")
+    );
+    // Find existing profile and check if fingerprint changed
+    let existing = store.profiles.iter().find(|item| item.provider == provider).cloned();
+    let (verified, last_test, last_status, last_at, fingerprint) = match &existing {
+        Some(prev) if prev.verified_fingerprint.as_deref() == Some(new_fingerprint.as_str()) => {
+            // Fingerprint unchanged — preserve verification state
+            (
+                prev.tool_calling_verified,
+                prev.last_connection_test.clone(),
+                prev.last_connection_test_status.clone(),
+                prev.last_connection_test_at.clone(),
+                prev.verified_fingerprint.clone(),
+            )
+        }
+        _ => {
+            // Fingerprint changed (or new profile) — reset verification
+            (false, None, None, None, Some(new_fingerprint))
+        }
+    };
     let profile = Profile {
         provider: provider.into(),
         label: display.into(),
         model_id: model.into(),
         base_url: base,
-        tool_calling_verified: false,
-        last_connection_test: None,
+        tool_calling_verified: verified,
+        last_connection_test: last_test,
+        last_connection_test_status: last_status,
+        last_connection_test_at: last_at,
+        verified_fingerprint: fingerprint,
     };
     if let Some(found) = store
         .profiles
@@ -702,6 +818,8 @@ fn probe<R: Runtime>(app: &AppHandle<R>, value: &Value) -> Result<Value, String>
             let _ = child.wait();
             profile.tool_calling_verified = false;
             profile.last_connection_test = Some("timeout".into());
+            profile.last_connection_test_status = Some("TIMEOUT".into());
+            profile.last_connection_test_at = Some(chrono_like_timestamp().to_string());
             save(app, &store)?;
             return Ok(
                 json!({"status":"ERROR","kind":"timeout","tool_calling_verified":false,"message":"连接超时，请检查网络、代理、模型名称或 API Base URL。"}),
@@ -717,11 +835,19 @@ fn probe<R: Runtime>(app: &AppHandle<R>, value: &Value) -> Result<Value, String>
         .read_to_end(&mut stdout)
         .map_err(|_| "probe output unavailable")?;
     let result: Value = serde_json::from_slice(&stdout).map_err(|_| "probe response invalid")?;
-    profile.tool_calling_verified = result
+    let verified = result
         .get("tool_calling_verified")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    profile.last_connection_test = Some("verified".into());
+    let kind = result
+        .get("kind")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+    let test_status = if verified { "SUCCESS" } else { kind.to_uppercase() };
+    profile.tool_calling_verified = verified;
+    profile.last_connection_test = Some(if verified { "verified".into() } else { "failed".into() });
+    profile.last_connection_test_status = Some(test_status.into());
+    profile.last_connection_test_at = Some(chrono_like_timestamp().to_string());
     save(app, &store)?;
     Ok(result)
 }
@@ -775,27 +901,41 @@ fn run_scientist_task<R: Runtime>(
     let session_id = task.session_id.clone();
     let mut child = match command.spawn() {
         Ok(child) => child,
-        Err(_) => {
+        Err(error) => {
             set_task_status(&task, "FAILED");
+            set_task_last_event(&task, "agent_error");
+            set_task_error_code(&task, "AGENT_PROCESS_SPAWN_FAILED");
             emit_task_event(
                 &app,
                 &task_id,
                 &session_id,
-                json!({"type":"agent_error","message":"Scientist runtime could not start."}),
+                json!({"type":"agent_error","code":"AGENT_PROCESS_SPAWN_FAILED","message":format!("Scientist 进程启动失败: {}", error)}),
             );
             return;
         }
     };
+    // Emit process_started only after successful spawn
+    set_task_last_event(&task, "process_started");
+    if let Ok(mut slot) = task.pid.lock() {
+        *slot = Some(child.id());
+    }
+    emit_task_event(
+        &app,
+        &task_id,
+        &session_id,
+        json!({"type":"process_started","message":"Scientist 进程已启动，正在初始化 Pi Agent..."}),
+    );
     let stdout = match child.stdout.take() {
         Some(stdout) => stdout,
         None => {
             terminate_process_tree(&mut child);
             set_task_status(&task, "FAILED");
+            set_task_error_code(&task, "AGENT_PROCESS_SPAWN_FAILED");
             emit_task_event(
                 &app,
                 &task_id,
                 &session_id,
-                json!({"type":"agent_error","message":"Scientist output stream unavailable."}),
+                json!({"type":"agent_error","code":"AGENT_PROCESS_SPAWN_FAILED","message":"Scientist output stream unavailable."}),
             );
             return;
         }
@@ -823,20 +963,39 @@ fn run_scientist_task<R: Runtime>(
         match line_rx.recv_timeout(Duration::from_millis(200)) {
             Ok(Ok(line)) => match serde_json::from_str::<Value>(&line) {
                 Ok(event) => {
-                    if event.get("type").and_then(Value::as_str) == Some("agent_error") {
-                        agent_error = true;
+                    let event_type = event.get("type").and_then(Value::as_str).unwrap_or("");
+                    if !event_type.is_empty() {
+                        set_task_last_event(&task, event_type);
+                    }
+                    match event_type {
+                        "agent_error" => {
+                            agent_error = true;
+                            if let Some(code) = event.get("code").and_then(Value::as_str) {
+                                set_task_error_code(&task, code);
+                            }
+                        }
+                        "agent_ready" => {
+                            // Node/Pi reports successful initialization — transition to RUNNING
+                            set_task_status(&task, "RUNNING");
+                        }
+                        _ => {}
                     }
                     emit_task_event(&app, &task_id, &session_id, event);
                 }
-                Err(_) => emit_task_event(
-                    &app,
-                    &task_id,
-                    &session_id,
-                    json!({"type":"agent_error","message":"Scientist emitted malformed JSON."}),
-                ),
+                Err(_) => {
+                    set_task_last_event(&task, "agent_error");
+                    set_task_error_code(&task, "AGENT_PROTOCOL_ERROR");
+                    emit_task_event(
+                        &app,
+                        &task_id,
+                        &session_id,
+                        json!({"type":"agent_error","code":"AGENT_PROTOCOL_ERROR","message":"Scientist emitted malformed JSON."}),
+                    );
+                }
             },
             Ok(Err(message)) => {
                 agent_error = true;
+                set_task_last_event(&task, "agent_error");
                 emit_task_event(
                     &app,
                     &task_id,
@@ -855,6 +1014,7 @@ fn run_scientist_task<R: Runtime>(
         if let Some(status) = stopped {
             let state = task_status(&task);
             if state == "CANCELLED" {
+                set_task_last_event(&task, "agent_cancelled");
                 emit_task_event(
                     &app,
                     &task_id,
@@ -863,6 +1023,7 @@ fn run_scientist_task<R: Runtime>(
                 );
             } else if status.success() && !agent_error {
                 set_task_status(&task, "COMPLETED");
+                set_task_last_event(&task, "task_completed");
                 emit_task_event(
                     &app,
                     &task_id,
@@ -871,6 +1032,7 @@ fn run_scientist_task<R: Runtime>(
                 );
             } else {
                 set_task_status(&task, "FAILED");
+                set_task_last_event(&task, "task_failed");
                 emit_task_event(
                     &app,
                     &task_id,
@@ -882,6 +1044,8 @@ fn run_scientist_task<R: Runtime>(
         }
         if Instant::now() >= deadline {
             set_task_status(&task, "TIMED_OUT");
+            set_task_last_event(&task, "task_failed");
+            set_task_error_code(&task, "AGENT_TASK_TIMEOUT");
             if let Ok(mut slot) = task.child.lock() {
                 if let Some(child) = slot.as_mut() {
                     terminate_process_tree(child);
@@ -891,7 +1055,7 @@ fn run_scientist_task<R: Runtime>(
                 &app,
                 &task_id,
                 &session_id,
-                json!({"type":"task_failed","code":"TASK_TIMEOUT","message":"Scientist task timed out and was safely terminated; the Session was preserved."}),
+                json!({"type":"task_failed","code":"AGENT_TASK_TIMEOUT","message":"Scientist task timed out and was safely terminated; the Session was preserved."}),
             );
             break;
         }
@@ -942,11 +1106,9 @@ fn scientist_start<R: Runtime>(
     }
     let runtime = runtime_dir();
     let mut command = Command::new(node_executable());
-    let runner = env::var_os("ECOMIC_SCIENTIST_RUNNER")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| runtime.join("agent/src/desktop-scientist-runner-v2.mjs"));
+    let runner = scientist_runner_path();
     command
-        .arg(runner)
+        .arg(&runner)
         .current_dir(&runtime)
         .env("ECOMIC_BACKEND", runtime.join("ecomic-backend.exe"))
         .env("ECOMIC_PROVIDER", provider)
@@ -957,6 +1119,7 @@ fn scientist_start<R: Runtime>(
         )
         .env("ECOMIC_SESSION_ID", &session_id)
         .env("ECOMIC_RESEARCH_QUESTION", &question)
+        .env("ECOMIC_STATE_DIR", state_dir())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     #[cfg(target_os = "windows")]
@@ -965,27 +1128,38 @@ fn scientist_start<R: Runtime>(
         command.env("ECOMIC_BASE_URL", base);
     }
     let id = task_id();
+    let now = chrono_like_timestamp();
     let task = Arc::new(ScientistTask {
         session_id: session_id.clone(),
         status: Mutex::new("STARTING".into()),
         child: Mutex::new(None),
+        provider: provider.into(),
+        model: profile.model_id.clone(),
+        created_at: now,
+        started_at: Mutex::new(Some(now)),
+        completed_at: Mutex::new(None),
+        pid: Mutex::new(None),
+        last_event: Mutex::new(Some("runtime_spawning".into())),
+        last_error_code: Mutex::new(None),
     });
-    tasks
-        .0
-        .lock()
-        .map_err(|_| "task manager unavailable")?
-        .insert(id.clone(), Arc::clone(&task));
+    {
+        let mut map = tasks.0.lock().map_err(|_| "task manager unavailable")?;
+        prune_task_history(&mut map);
+        map.insert(id.clone(), Arc::clone(&task));
+    }
     let app_handle = app.clone();
     let task_id_for_thread = id.clone();
     let task_session_id = session_id.clone();
+    // Emit runtime_spawning before thread starts; actual process_started will be
+    // emitted inside run_scientist_task after successful spawn. agent_ready is
+    // emitted by Node after Pi Agent initializes — Rust must never fake it.
+    emit_task_event(
+        &app_handle,
+        &task_id_for_thread,
+        &task_session_id,
+        json!({"type":"runtime_spawning","message":"正在启动 Scientist Runtime..."}),
+    );
     thread::spawn(move || {
-        set_task_status(&task, "RUNNING");
-        emit_task_event(
-            &app_handle,
-            &task_id_for_thread,
-            &task_session_id,
-            json!({"type":"agent_started"}),
-        );
         run_scientist_task(app_handle, task_id_for_thread, task, command);
     });
     Ok(json!({"task_id":id,"session_id":session_id,"status":"STARTING"}))
@@ -1012,6 +1186,7 @@ fn scientist_cancel<R: Runtime>(
         return Ok(json!({"task_id":id,"status":status}));
     }
     set_task_status(&task, "CANCELLING");
+    set_task_last_event(&task, "agent_cancelling");
     emit_task_event(
         app,
         id,
@@ -1024,6 +1199,7 @@ fn scientist_cancel<R: Runtime>(
         }
     }
     set_task_status(&task, "CANCELLED");
+    set_task_last_event(&task, "agent_cancelled");
     Ok(json!({"task_id":id,"status":"CANCELLED"}))
 }
 
@@ -1100,6 +1276,325 @@ fn open_report_location(bridge: &Bridge, value: &Value) -> Result<Value, String>
     }
     Ok(json!({"status":"OPENED","session_id":session_id}))
 }
+
+/// Checks whether the pinned Pi Runtime supports a given provider+model by spawning
+/// the real check-pi-model.mjs helper. Returns Ok(true) if supported, Ok(false) if not,
+/// Err(_) on timeout or parse failure (preflight treats Err as WARN, not FAIL).
+fn check_pi_model_support(provider: &str, model_id: &str, base_url: Option<&str>) -> Result<bool, String> {
+    let runtime = runtime_dir();
+    let node = node_executable();
+    let script = runtime.join("agent/src/check-pi-model.mjs");
+    if !check_file_exists(&node) || !check_file_exists(&script) {
+        return Err("node or check-pi-model.mjs not found".into());
+    }
+    let mut command = Command::new(&node);
+    command.arg(&script).arg(provider).arg(model_id).current_dir(&runtime);
+    if let Some(base) = base_url {
+        command.arg(base);
+    }
+    command.stdout(Stdio::piped()).stderr(Stdio::piped());
+    #[cfg(target_os = "windows")]
+    command.creation_flags(CREATE_NO_WINDOW);
+    let mut child = command.spawn().map_err(|e| format!("spawn failed: {}", e))?;
+    let stdout = child.stdout.take().ok_or("stdout unavailable")?;
+    let (tx, rx) = mpsc::channel::<String>();
+    thread::spawn(move || {
+        let mut output = String::new();
+        let mut reader = BufReader::new(stdout);
+        let _ = reader.read_to_string(&mut output);
+        let _ = tx.send(output);
+    });
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            return Err("model check timed out".into());
+        }
+        match rx.recv_timeout(Duration::from_millis(100)) {
+            Ok(output) => {
+                let _ = child.wait();
+                for line in output.lines() {
+                    if let Ok(value) = serde_json::from_str::<Value>(line) {
+                        if let Some(supported) = value.get("supported").and_then(Value::as_bool) {
+                            return Ok(supported);
+                        }
+                    }
+                }
+                return Err("no supported field in model check output".into());
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => continue,
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                let _ = child.kill();
+                return Err("model check reader disconnected".into());
+            }
+        }
+    }
+}
+
+// ── Scientist Preflight ──────────────────────────────────────────────
+fn scientist_preflight<R: Runtime>(
+    app: &AppHandle<R>,
+    bridge: &Bridge,
+    tasks: &TaskManager,
+    value: &Value,
+) -> Result<Value, String> {
+    let session_id = value
+        .get("session_id")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .trim()
+        .to_owned();
+    let runtime = runtime_dir();
+    let mut checks: Vec<Value> = Vec::new();
+    let mut all_pass = true;
+
+    // SESSION_EXISTS
+    let session_ok = if session_id.is_empty() {
+        false
+    } else {
+        call(bridge, json!({"action":"get_session","payload":{"session_id":&session_id}}))
+            .map(|v| v.get("session_id").is_some())
+            .unwrap_or(false)
+    };
+    if !session_ok {
+        all_pass = false;
+        checks.push(json!({"id":"session_exists","status":"FAIL","code":"SESSION_NOT_FOUND","message":"Session 不存在，请先创建或导入数据集。"}));
+    } else {
+        checks.push(json!({"id":"session_exists","status":"PASS"}));
+    }
+
+    // DOMAIN_SPEC_CONFIRMED
+    let spec_ok = call(bridge, json!({"action":"get_session","payload":{"session_id":&session_id}}))
+        .map(|v| v.get("domain_spec_confirmed").and_then(Value::as_bool).unwrap_or(false))
+        .unwrap_or(false);
+    if !spec_ok {
+        all_pass = false;
+        checks.push(json!({"id":"domain_spec_confirmed","status":"FAIL","code":"DOMAIN_SPEC_NOT_CONFIRMED","message":"DomainSpec 尚未确认，请先完成领域规格配置。"}));
+    } else {
+        checks.push(json!({"id":"domain_spec_confirmed","status":"PASS"}));
+    }
+
+    // NODE_RUNTIME_PRESENT
+    let node_ok = check_file_exists(&node_executable());
+    if !node_ok {
+        all_pass = false;
+        checks.push(json!({"id":"node_runtime","status":"FAIL","code":"RUNTIME_NODE_MISSING","message":"Node.js 运行时缺失，请重新安装应用或构建 Runtime。"}));
+    } else {
+        checks.push(json!({"id":"node_runtime","status":"PASS"}));
+    }
+
+    // BACKEND_RUNTIME_PRESENT
+    let backend_ok = check_file_exists(&backend_executable());
+    if !backend_ok {
+        all_pass = false;
+        checks.push(json!({"id":"backend_runtime","status":"FAIL","code":"RUNTIME_BACKEND_MISSING","message":"Python 后端可执行文件缺失，请重新安装应用或构建 Runtime。"}));
+    } else {
+        checks.push(json!({"id":"backend_runtime","status":"PASS"}));
+    }
+
+    // SCIENTIST_RUNNER_PRESENT
+    let runner_ok = check_file_exists(&scientist_runner_path());
+    if !runner_ok {
+        all_pass = false;
+        checks.push(json!({"id":"scientist_runner","status":"FAIL","code":"RUNTIME_RUNNER_MISSING","message":"Scientist Runner 脚本缺失。"}));
+    } else {
+        checks.push(json!({"id":"scientist_runner","status":"PASS"}));
+    }
+
+    // PI_AGENT_CORE_PRESENT
+    let pi_agent_core = runtime.join("vendor/pi/packages/agent/dist/index.js");
+    if !check_file_exists(&pi_agent_core) {
+        all_pass = false;
+        checks.push(json!({"id":"pi_agent_core","status":"FAIL","code":"PI_AGENT_CORE_MISSING","message":"Pi Agent Core 运行时缺失，请运行 bootstrap-pi-runtime.ps1。"}));
+    } else {
+        checks.push(json!({"id":"pi_agent_core","status":"PASS"}));
+    }
+
+    // PI_AI_RUNTIME_PRESENT
+    let pi_ai = runtime.join("vendor/pi/packages/ai/dist/index.js");
+    if !check_file_exists(&pi_ai) {
+        all_pass = false;
+        checks.push(json!({"id":"pi_ai_runtime","status":"FAIL","code":"PI_AI_RUNTIME_MISSING","message":"Pi AI 运行时缺失，请运行 bootstrap-pi-runtime.ps1。"}));
+    } else {
+        checks.push(json!({"id":"pi_ai_runtime","status":"PASS"}));
+    }
+
+    // RUNTIME_MANIFEST_VALID
+    let manifest_ok = read_runtime_manifest().is_some();
+    if !manifest_ok {
+        checks.push(json!({"id":"runtime_manifest","status":"WARN","code":"RUNTIME_MANIFEST_MISSING","message":"Runtime Manifest 缺失，版本信息不可用。"}));
+    } else {
+        checks.push(json!({"id":"runtime_manifest","status":"PASS"}));
+    }
+
+    // STATE_DIR_WRITABLE
+    let sdir = state_dir();
+    let state_ok = fs::create_dir_all(&sdir).is_ok() && sdir.is_dir();
+    if !state_ok {
+        all_pass = false;
+        checks.push(json!({"id":"state_dir_writable","status":"FAIL","code":"STATE_DIR_NOT_WRITABLE","message":"状态目录不可写。"}));
+    } else {
+        checks.push(json!({"id":"state_dir_writable","status":"PASS"}));
+    }
+
+    // PROVIDER checks
+    let store = load(app)?;
+    let provider_id = store.default_provider.as_deref();
+    if provider_id.is_none() {
+        all_pass = false;
+        checks.push(json!({"id":"default_provider","status":"FAIL","code":"DEFAULT_PROVIDER_MISSING","message":"未设置默认 Provider，请先在'模型与 API'中配置。"}));
+    } else {
+        checks.push(json!({"id":"default_provider","status":"PASS"}));
+        let pid = provider_id.unwrap();
+        let profile = store.profiles.iter().find(|p| p.provider == pid);
+        if profile.is_none() {
+            all_pass = false;
+            checks.push(json!({"id":"provider_profile","status":"FAIL","code":"PROVIDER_PROFILE_MISSING","message":"Provider Profile 缺失。"}));
+        } else {
+            let prof = profile.unwrap();
+            checks.push(json!({"id":"provider_profile","status":"PASS"}));
+            if !present(pid) {
+                all_pass = false;
+                checks.push(json!({"id":"provider_credential","status":"FAIL","code":"PROVIDER_CREDENTIAL_MISSING","message":"API Key 未保存或已失效。"}));
+            } else {
+                checks.push(json!({"id":"provider_credential","status":"PASS"}));
+            }
+            if !prof.tool_calling_verified {
+                all_pass = false;
+                checks.push(json!({"id":"tool_calling_verified","status":"FAIL","code":"TOOL_CALLING_NOT_VERIFIED","message":"Tool Calling 验证未通过，请先完成连接测试。"}));
+            } else {
+                checks.push(json!({"id":"tool_calling_verified","status":"PASS"}));
+            }
+            // MODEL_SUPPORTED_BY_CURRENT_PI — uses real Pi runtime via check-pi-model.mjs
+            if !prof.model_id.is_empty() && check_file_exists(&pi_agent_core) && check_file_exists(&pi_ai) {
+                match check_pi_model_support(pid, &prof.model_id, prof.base_url.as_deref()) {
+                    Ok(true) => checks.push(json!({"id":"model_supported","status":"PASS"})),
+                    Ok(false) => {
+                        all_pass = false;
+                        checks.push(json!({"id":"model_supported","status":"FAIL","code":"PI_MODEL_NOT_FOUND","message":format!("当前 Pi Runtime 不支持模型 {}，请检查模型 ID 或更新 Pi Runtime。", prof.model_id)}));
+                    }
+                    Err(_) => checks.push(json!({"id":"model_supported","status":"WARN","code":"MODEL_CHECK_UNAVAILABLE","message":"无法验证模型支持状态，将在启动时再次检查。"})),
+                }
+            } else if !prof.model_id.is_empty() {
+                checks.push(json!({"id":"model_supported","status":"WARN","code":"PI_RUNTIME_MISSING","message":"Pi Runtime 缺失，无法验证模型支持。"}));
+            } else {
+                all_pass = false;
+                checks.push(json!({"id":"model_supported","status":"FAIL","code":"PI_MODEL_NOT_FOUND","message":"未配置模型 ID。"}));
+            }
+        }
+    }
+
+    // NO_ACTIVE_DUPLICATE_TASK
+    let has_active = tasks.0.lock().map(|m| {
+        m.values().any(|t| t.session_id == session_id && matches!(task_status(t), s if s == "STARTING" || s == "RUNNING" || s == "CANCELLING"))
+    }).unwrap_or(false);
+    if has_active {
+        all_pass = false;
+        checks.push(json!({"id":"no_duplicate_task","status":"FAIL","code":"DUPLICATE_TASK_ACTIVE","message":"该 Session 已有一个运行中的 Scientist 任务。"}));
+    } else {
+        checks.push(json!({"id":"no_duplicate_task","status":"PASS"}));
+    }
+
+    Ok(json!({
+        "ready": all_pass,
+        "checks": checks,
+        "session_id": session_id,
+    }))
+}
+
+// ── Desktop Runtime Health ───────────────────────────────────────────
+fn desktop_runtime_health<R: Runtime>(
+    app: &AppHandle<R>,
+    bridge: &Bridge,
+    tasks: &TaskManager,
+) -> Result<Value, String> {
+    let runtime = runtime_dir();
+    let desktop = if runtime.is_dir() { "READY" } else { "MISSING" };
+    let backend = if check_file_exists(&backend_executable()) { "READY" } else { "MISSING" };
+    let database = match call(bridge, json!({"action":"health_check","payload":{}})) {
+        Ok(_) => "READY",
+        Err(_) => "UNAVAILABLE",
+    };
+    let node = if check_file_exists(&node_executable()) { "READY" } else { "MISSING" };
+    let pi_agent = if check_file_exists(&runtime.join("vendor/pi/packages/agent/dist/index.js")) { "READY" } else { "MISSING" };
+    let pi_ai = if check_file_exists(&runtime.join("vendor/pi/packages/ai/dist/index.js")) { "READY" } else { "MISSING" };
+
+    let store = load(app).unwrap_or(Store::default());
+    let provider = store.default_provider.as_deref();
+    let provider_state = if provider.is_none() {
+        "UNCONFIGURED"
+    } else {
+        let pid = provider.unwrap();
+        let prof = store.profiles.iter().find(|p| p.provider == pid);
+        match prof {
+            None => "UNCONFIGURED",
+            Some(p) if !present(pid) => "CREDENTIAL_MISSING",
+            Some(p) if !p.tool_calling_verified => "UNVERIFIED",
+            Some(_) => "VERIFIED",
+        }
+    };
+
+    let agent_state = tasks.0.lock().map(|m| {
+        let any_active = m.values().any(|t| matches!(task_status(t), s if s == "STARTING" || s == "RUNNING" || s == "CANCELLING"));
+        if any_active { "RUNNING" } else { "IDLE" }
+    }).unwrap_or("UNKNOWN");
+
+    let manifest = read_runtime_manifest().unwrap_or(json!({}));
+
+    Ok(json!({
+        "desktop": desktop,
+        "backend": backend,
+        "database": database,
+        "node": node,
+        "pi": if pi_agent == "READY" && pi_ai == "READY" { "READY" } else { "MISSING" },
+        "provider": provider_state,
+        "agent": agent_state,
+        "manifest": manifest,
+    }))
+}
+
+// ── Scientist Active For Session ─────────────────────────────────────
+fn scientist_active_for_session(tasks: &TaskManager, value: &Value) -> Result<Value, String> {
+    let session_id = value
+        .get("session_id")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let active = tasks.0.lock().map_err(|_| "task manager unavailable")?
+        .iter()
+        .find(|(_, t)| t.session_id == session_id && matches!(task_status(t), s if s == "STARTING" || s == "RUNNING" || s == "CANCELLING"))
+        .map(|(id, t)| json!({
+            "task_id": id,
+            "session_id": t.session_id,
+            "status": task_status(t),
+            "provider": t.provider,
+            "model": t.model,
+            "pid": t.pid.lock().ok().and_then(|v| *v),
+            "last_event": t.last_event.lock().ok().and_then(|v| v.clone()),
+        }));
+    Ok(json!({"active_task": active}))
+}
+
+// ── List Scientist Tasks ─────────────────────────────────────────────
+fn list_scientist_tasks(tasks: &TaskManager) -> Result<Value, String> {
+    let list = tasks.0.lock().map_err(|_| "task manager unavailable")?
+        .iter()
+        .map(|(id, t)| json!({
+            "task_id": id,
+            "session_id": t.session_id,
+            "status": task_status(t),
+            "provider": t.provider,
+            "model": t.model,
+            "created_at": t.created_at,
+            "started_at": t.started_at.lock().ok().and_then(|v| *v),
+            "completed_at": t.completed_at.lock().ok().and_then(|v| *v),
+            "pid": t.pid.lock().ok().and_then(|v| *v),
+            "last_event": t.last_event.lock().ok().and_then(|v| v.clone()),
+            "last_error_code": t.last_error_code.lock().ok().and_then(|v| v.clone()),
+        }))
+        .collect::<Vec<_>>();
+    Ok(json!({"tasks": list}))
+}
+
 #[tauri::command]
 async fn desktop_bridge<R: Runtime>(
     app: AppHandle<R>,
@@ -1157,6 +1652,28 @@ async fn desktop_bridge<R: Runtime>(
         }
         "scientist_cancel" => scientist_cancel(&app, &tasks, &payload),
         "scientist_status" => scientist_status(&tasks, &payload),
+        "scientist_preflight" => {
+            let owned_app = app.clone();
+            let owned_bridge = bridge.inner().clone();
+            let owned_tasks = tasks.inner().clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                scientist_preflight(&owned_app, &owned_bridge, &owned_tasks, &payload)
+            })
+            .await
+            .map_err(|_| "preflight interrupted".to_string())?
+        }
+        "scientist_active_for_session" => scientist_active_for_session(&tasks, &payload),
+        "list_scientist_tasks" => list_scientist_tasks(&tasks),
+        "desktop_runtime_health" => {
+            let owned_app = app.clone();
+            let owned_bridge = bridge.inner().clone();
+            let owned_tasks = tasks.inner().clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                desktop_runtime_health(&owned_app, &owned_bridge, &owned_tasks)
+            })
+            .await
+            .map_err(|_| "health check interrupted".to_string())?
+        }
         "report_open_location" => open_report_location(&bridge, &payload),
         _ => {
             let request = json!({"action":action,"payload":payload});
@@ -1184,6 +1701,9 @@ pub fn run() {
             let _ = RUNTIME_DIR.set(selected);
             if let Ok(data) = app.path().app_data_dir() {
                 let _ = DIAGNOSTIC_LOG_DIR.set(data.join("logs"));
+                let sdir = data.join("state");
+                let _ = fs::create_dir_all(&sdir);
+                let _ = STATE_DIR.set(sdir);
             }
             append_diagnostic("desktop runtime started");
             Ok(())

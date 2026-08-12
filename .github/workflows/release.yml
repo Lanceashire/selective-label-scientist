@@ -25,21 +25,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e . pyinstaller
-      - name: Build Pi runtime from the pinned upstream revision
+      - name: Build complete runtime (Pi + Backend + Agent + Manifest)
         shell: pwsh
-        run: |
-          git clone --depth 1 https://github.com/earendil-works/pi vendor/pi
-          Push-Location vendor/pi
-          npm install --ignore-scripts
-          npm run hydrate:model-data
-          npm run build:offline
-          Pop-Location
-      - name: Build bundled Python backend
+        run: ./scripts/build-runtime.ps1
+      - name: Verify release runtime (manifest + critical files + Pi commit)
         shell: pwsh
-        run: ./scripts/build-backend.ps1
-      - name: Bundle Node, Pi and Scientist Agent
+        run: ./scripts/verify-release-runtime.ps1
+      - name: Verify bundled backend
         shell: pwsh
-        run: ./scripts/build-agent-runtime.ps1
+        run: ./scripts/verify-backend-exe.ps1
       - name: Build NSIS installer
         working-directory: desktop
         run: |
@@ -62,4 +56,5 @@ jobs:
           path: |
             release/ECOMIC-Setup-0.3.0.exe
             release/SHA256SUMS.txt
+            release/runtime/ecomic-agent/runtime-manifest.json
           if-no-files-found: error

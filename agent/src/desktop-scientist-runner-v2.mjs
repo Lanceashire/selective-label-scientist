@@ -79,11 +79,92 @@ function call(action, payload) {
 }
 const session = Type.Object({ session_id: Type.String(), state_dir: Type.Optional(Type.String()) });
 function typedTool(name, parameters) {
-  return { name: `ecomic_${name}`, label: `ECOMIC: ${name}`, description: `Audited typed research tool ${name}; never expose Oracle labels or evaluator metrics.`, parameters, executionMode:"sequential", execute: async (_id,args) => { emit({type:"tool_start",tool:name}); const result=await call(name,args); emit({type:"tool_end",tool:name,status:"COMPLETED"}); return {content:[{type:"text",text:JSON.stringify(result)}],details:{action:name}}; } };
+  return { name: `ecomic_${name}`, label: `ECOMIC: ${name}`, description: `Audited typed research tool ${name}; never expose Oracle labels or evaluator metrics.`, parameters, executionMode:"sequential", execute: async (_id,args) => { const sid=args.session_id||process.env.ECOMIC_SESSION_ID||""; emit({type:"tool_start",tool:name,session_id:sid}); const result=await call(name,args); emit({type:"tool_end",tool:name,status:"COMPLETED",session_id:sid}); return {content:[{type:"text",text:JSON.stringify(result)}],details:{action:name}}; } };
 }
 function agent(model, key, sid) {
   const tools=[typedTool("observe_state",session),typedTool("audit_environment",session),typedTool("create_hypothesis",Type.Object({...session.properties,content:Type.String()})),typedTool("revise_hypothesis",Type.Object({...session.properties,parent_hypothesis_id:Type.String(),content:Type.String()})),typedTool("plan_experiment",Type.Object({...session.properties,hypothesis_id:Type.String(),policy:Type.String(),budget:Type.Number(),rounds:Type.Integer({minimum:1})})),typedTool("run_experiment",Type.Object({...session.properties,plan_id:Type.String(),policy:Type.String(),budget:Type.Number(),seed:Type.Integer(),rounds:Type.Integer({minimum:1})})),typedTool("compare_visible_evidence",Type.Object({...session.properties,run_ids:Type.Array(Type.String(),{minItems:2})})),typedTool("lock_run_plan",Type.Object({...session.properties,run_id:Type.String()})),typedTool("finalize_evaluation",Type.Object({...session.properties,run_id:Type.String()})),typedTool("claim_guard",Type.Object({...session.properties,claim:Type.String(),evidence_run_ids:Type.Array(Type.String()),strength:Type.Optional(Type.String())})),typedTool("generate_report",session)];
   return new Agent({initialState:{systemPrompt:"You are ECOMIC, a cautious AI scientist. Use only typed ECOMIC tools. Begin with observe_state and audit_environment, create and revise hypotheses only from researcher-visible evidence, and never access Oracle labels or submit evaluator metrics.",model,tools,thinkingLevel:"medium"},streamFn:streamSimple,getApiKey:()=>key,sessionId:`desktop-${sid}`,toolExecution:"sequential",beforeToolCall:async({toolCall,args})=>(/oracle|hidden[._-]?label|shell|bash/i.test(toolCall.name)||(toolCall.name==="ecomic_finalize_evaluation"&&"metrics" in args))?{block:true,reason:"Forbidden research boundary",terminate:true}:undefined});
 }
-async function main(){const provider=process.env.ECOMIC_PROVIDER||"";const info=providers[provider];const sid=process.env.ECOMIC_SESSION_ID||"";const question=process.env.ECOMIC_RESEARCH_QUESTION||"";if(!info||!sid||!question.trim()||!process.env[info[1]])throw new Error("缺少经验证的模型、凭据、Session 或研究问题");const baseUrl=process.env.ECOMIC_BASE_URL?.trim()||undefined;const models=builtinModels();if(provider==="custom_openai_compatible"){if(!baseUrl)throw new Error("Custom Provider requires base URL");models.setProvider(customProvider(process.env.ECOMIC_MODEL||"",baseUrl));}const found=models.getModel(info[0],process.env.ECOMIC_MODEL||"");if(!found)throw new Error("Pi does not support this Model ID");const model=baseUrl&&provider!=="custom_openai_compatible"?{...found,baseUrl}:found;const run=agent(model,process.env[info[1]],sid);run.subscribe(event=>{if(event.type==="tool_execution_start")emit({type:"agent_tool_execution",tool:event.toolName});});emit({type:"agent_started",session_id:sid});await run.prompt(`Current ECOMIC session_id is ${sid}. Research question: ${question}.`);if(run.state.errorMessage)throw new Error(run.state.errorMessage);emit({type:"agent_completed",session_id:sid});}
-main().catch(()=>{emit({type:"agent_error",message:"Scientist Agent 运行失败，请检查模型连接或研究配置。"});process.exitCode=1;}).finally(() => stopWorker("Scientist task finished."));
+async function main() {
+  const provider = process.env.ECOMIC_PROVIDER || "";
+  const info = providers[provider];
+  const sid = process.env.ECOMIC_SESSION_ID || "";
+  const question = process.env.ECOMIC_RESEARCH_QUESTION || "";
+
+  // Validate prerequisites
+  if (!info || !sid || !question.trim() || !process.env[info[1]]) {
+    throw classifyError("缺少经验证的模型、凭据、Session 或研究问题", "PROVIDER_CREDENTIAL_MISSING");
+  }
+
+  const baseUrl = process.env.ECOMIC_BASE_URL?.trim() || undefined;
+  const modelId = process.env.ECOMIC_MODEL || "";
+
+  // Resolve model through Pi
+  let model;
+  try {
+    const models = builtinModels();
+    if (provider === "custom_openai_compatible") {
+      if (!baseUrl) throw classifyError("Custom Provider requires base URL", "PROVIDER_MALFORMED_RESPONSE");
+      models.setProvider(customProvider(modelId, baseUrl));
+    }
+    const found = models.getModel(info[0], modelId);
+    if (!found) throw classifyError(`Pi does not support this Model ID: ${modelId}`, "PI_MODEL_NOT_FOUND");
+    model = baseUrl && provider !== "custom_openai_compatible" ? { ...found, baseUrl } : found;
+  } catch (error) {
+    if (error.code) throw error;
+    throw classifyError(error.message, "PI_AGENT_CORE_MISSING");
+  }
+
+  // Initialize Pi Agent
+  let run;
+  try {
+    run = agent(model, process.env[info[1]], sid);
+  } catch (error) {
+    throw classifyError(`Pi Agent 初始化失败: ${error.message}`, "AGENT_INITIALIZATION_FAILED");
+  }
+
+  run.subscribe(event => {
+    if (event.type === "tool_execution_start") {
+      emit({ type: "agent_tool_execution", tool: event.toolName, session_id: sid });
+    }
+  });
+
+  // Emit agent_ready only after Pi Agent is successfully initialized
+  emit({ type: "agent_ready", session_id: sid, message: "Pi Agent 已初始化，开始执行研究任务。" });
+
+  // Execute the research prompt
+  try {
+    await run.prompt(`Current ECOMIC session_id is ${sid}. Research question: ${question}.`);
+  } catch (error) {
+    throw classifyError(error.message || "Pi Agent 执行失败", "AGENT_PROTOCOL_ERROR");
+  }
+
+  if (run.state.errorMessage) {
+    throw classifyError(run.state.errorMessage, "AGENT_PROTOCOL_ERROR");
+  }
+
+  emit({ type: "agent_completed", session_id: sid });
+}
+
+function classifyError(message, defaultCode) {
+  const msg = String(message || "").toLowerCase();
+  let code = defaultCode || "UNKNOWN";
+  if (msg.includes("unauthorized") || msg.includes("401") || msg.includes("invalid api key")) code = "PROVIDER_UNAUTHORIZED";
+  else if (msg.includes("rate_limit") || msg.includes("429") || msg.includes("rate limit")) code = "PROVIDER_RATE_LIMITED";
+  else if (msg.includes("timeout") || msg.includes("timed out")) code = "PROVIDER_TIMEOUT";
+  else if (msg.includes("network") || msg.includes("econnrefused") || msg.includes("enotfound") || msg.includes("fetch failed")) code = "PROVIDER_NETWORK_ERROR";
+  else if (msg.includes("not found") || msg.includes("model")) code = defaultCode;
+  const err = new Error(message);
+  err.code = code;
+  err.type = "agent_error";
+  return err;
+}
+
+main().catch((error) => {
+  const code = error.code || "UNKNOWN";
+  const message = error.message || "Scientist Agent 运行失败。";
+  process.stderr.write(`[agent_error] code=${code} message=${message}\n`);
+  if (error.stack) process.stderr.write(`${error.stack}\n`);
+  emit({ type: "agent_error", code, message, session_id: process.env.ECOMIC_SESSION_ID || "" });
+  process.exitCode = 1;
+}).finally(() => stopWorker("Scientist task finished."));

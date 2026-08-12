@@ -13,9 +13,15 @@ export type DatasetPreview = { path: string; sha256: string; format: string; siz
 export type PrecheckProgress = { type: "precheck_progress"; request_id: string; stage: "读取文件" | "解析 Schema" | "统计字段" | "生成样本" | "完成"; percent: number };
 export type DatasetSession = { session_id: string; schema: DatasetPreview["schema"]; candidates: Record<string, { column: string; confidence: number }[]>; domain_spec: Record<string, unknown>; status: string };
 export type ResearchSession = { session_id: string; status: string; research_plan_locked: number | boolean; final_evaluation_revealed: number | boolean; hypotheses: { hypothesis_id: string; content: string; status: string; version: number }[]; plans: { plan_id: string; recipe_json: string }[]; runs: { run_id: string; policy: string; budget: number; status: string; round_end: number }[] };
-export type ScientistEvent = { type: "agent_started" | "agent_completed" | "agent_error" | "agent_tool_execution" | "tool_start" | "tool_end" | "experiment_progress" | "agent_cancelling" | "agent_cancelled" | "task_completed" | "task_failed"; task_id?: string; session_id?: string; tool?: string; status?: string; code?: string; run_id?: string; round?: number; total_rounds?: number; message?: string };
+export type ScientistEvent = { type: "runtime_spawning" | "process_started" | "agent_ready" | "agent_started" | "agent_completed" | "agent_error" | "agent_tool_execution" | "tool_start" | "tool_end" | "experiment_progress" | "agent_cancelling" | "agent_cancelled" | "task_completed" | "task_failed"; task_id?: string; session_id?: string; tool?: string; status?: string; code?: string; run_id?: string; round?: number; total_rounds?: number; message?: string };
 export type ScientistTaskStart = { task_id: string; session_id: string; status: "STARTING" };
 export type ScientistTaskStatus = { task_id: string; session_id?: string; status: "STARTING" | "RUNNING" | "CANCELLING" | "CANCELLED" | "COMPLETED" | "FAILED" | "TIMED_OUT" };
+export type ScientistAgentState = "UNCONFIGURED" | "RUNTIME_MISSING" | "PROVIDER_UNVERIFIED" | "READY" | "STARTING" | "PROCESS_STARTED" | "INITIALIZING" | "RUNNING" | "CANCELLING" | "COMPLETED" | "FAILED" | "TIMED_OUT";
+export type PreflightCheck = { id: string; status: "PASS" | "FAIL" | "WARN"; code?: string; message?: string };
+export type PreflightResult = { ready: boolean; checks: PreflightCheck[]; session_id: string };
+export type RuntimeHealth = { desktop: string; backend: string; database: string; node: string; pi: string; provider: string; agent: string; manifest: Record<string, unknown> };
+export type ScientistTaskInfo = { task_id: string; session_id: string; status: string; provider: string; model: string; created_at: number; started_at: number | null; completed_at: number | null; pid: number | null; last_event: string | null; last_error_code: string | null };
+export type ScientistActiveTask = { task_id: string; session_id: string; status: string; provider: string; model: string; pid: number | null; last_event: string | null } | null;
 export type HistorySession = { session_id:string; status:string; dataset:string; dataset_path:string | null; domain:string; model:string; hypothesis_count:number; run_count:number; updated_at:string; created_at:string; final_evaluation_revealed:boolean };
 export type ResumedDatasetSession = DatasetSession & { snapshot: { round_index:number; state: { remaining_budget?:number; visible_label_count?:number; candidate_remaining?:number } } | null; research_plan_locked:boolean; final_evaluation_revealed:boolean };
 export type ReportDocument = { session_id:string; path:string; content:string };
@@ -81,6 +87,10 @@ export const DesktopBridge = {
   startScientist(session_id: string, question: string) { return this.call<ScientistTaskStart>("scientist_start", { session_id, question }); },
   cancelScientist(task_id: string) { return this.call<ScientistTaskStatus>("scientist_cancel", { task_id }); },
   scientistStatus(task_id: string) { return this.call<ScientistTaskStatus>("scientist_status", { task_id }); },
+  scientistPreflight(session_id: string) { return this.call<PreflightResult>("scientist_preflight", { session_id }); },
+  scientistActiveForSession(session_id: string) { return this.call<{ active_task: ScientistActiveTask }>("scientist_active_for_session", { session_id }); },
+  listScientistTasks() { return this.call<{ tasks: ScientistTaskInfo[] }>("list_scientist_tasks"); },
+  desktopRuntimeHealth() { return this.call<RuntimeHealth>("desktop_runtime_health"); },
   subscribeScientistEvents(handler: (event: ScientistEvent) => void) { return listen<ScientistEvent>("scientist-event", (event) => handler(event.payload)); },
   subscribePrecheckEvents(handler: (event: PrecheckProgress) => void) { return listen<PrecheckProgress>("precheck-event", (event) => handler(event.payload)); },
   providerStatus() { return this.call<ProviderStatus>("provider_status"); },
